@@ -38,3 +38,16 @@ const uint16_t FIELD_ACC_VOLATILE  = 0x0040;
 const uint16_t FIELD_ACC_TRANSIENT = 0x0080;
 const uint16_t FIELD_ACC_SYNTHETIC = 0x1000;
 const uint16_t FIELD_ACC_ENUM      = 0x4000;
+
+const uint16_t METHOD_ACC_PUBLIC       = 0x0001;
+const uint16_t METHOD_ACC_PRIVATE      = 0x0002;
+const uint16_t METHOD_ACC_PROTECTED    = 0x0004;
+const uint16_t METHOD_ACC_STATIC       = 0x0008;
+const uint16_t METHOD_ACC_FINAL        = 0x0010;
+const uint16_t METHOD_ACC_SYNCHRONIZED = 0x0020;
+const uint16_t METHOD_ACC_BRIDGE       = 0x0040;
+const uint16_t METHOD_ACC_VARARGS      = 0x0080;
+const uint16_t METHOD_ACC_NATIVE       = 0x0100;
+const uint16_t METHOD_ACC_ABSTRACT     = 0x0400;
+const uint16_t METHOD_ACC_STRICT       = 0x0800;
+const uint16_t METHOD_ACC_SYNTHETIC    = 0x1000;

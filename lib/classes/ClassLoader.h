@@ -6,7 +6,8 @@
 
 #include "ClassFileConstants.h"
 
-#include "ConstantPoolEntry.h"
+//#include "ConstantPoolEntry.h"
+#include "ConstantInfo.h"
 #include "FieldInfoEntry.h"
 #include "AttributeInfoEntry.h"
 #include "MethodInfoEntry.h"
@@ -132,13 +133,88 @@ private:
     uint16_t        attributes_count;
     attribute_info* attributes = NULL;
 
+    void print_constant_pool(void) {
+
+        auto pad_number = [](int i, int len) -> std::string {
+            auto str = std::to_string(i);
+            while(str.size() < len)
+                str = str + " ";
+            return str;
+        };
+
+        for(int i = 0; i < constant_pool_count-1; i++) {
+            std::cout << pad_number(i, 5);
+            cp_info& el = constant_pool[i];
+            switch(el.tag) {
+                case CONSTANT_Utf8:
+                    std::cout << " CONSTANT_Utf8\n" 
+                    << *static_cast<CONSTANT_Utf8_info*>(el.info) 
+                    << std::endl << std::flush;
+                    break;
+                case CONSTANT_Integer:
+                    std::cout << " CONSTANT_Integer\n" << std::flush; 
+                    break;
+                case CONSTANT_Float:
+                    std::cout << " CONSTANT_Float\n" << std::flush; 
+                    break;
+                case CONSTANT_Long:
+                    std::cout << " CONSTANT_Long\n" << std::flush; 
+                    break;
+                case CONSTANT_Double:
+                    std::cout << " CONSTANT_Double\n" << std::flush;
+                    break;
+                case CONSTANT_Class:
+                    std::cout << " CONSTANT_Class\n" 
+                    << *static_cast<CONSTANT_Class_info*>(el.info) 
+                    << std::endl << std::flush;
+                    break;
+                case CONSTANT_String:
+                    std::cout << " CONSTANT_String\n" << std::flush;
+                    break;
+                case CONSTANT_FieldRef:
+                    std::cout << " CONSTANT_FieldRef\n" 
+                    << *static_cast<CONSTANT_Fieldref_info*>(el.info) 
+                    << std::endl << std::flush;
+                    break;
+                case CONSTANT_MethodRef:
+                    std::cout << " CONSTANT_MethodRef\n" 
+                    << *static_cast<CONSTANT_Methodref_info*>(el.info) 
+                    << std::endl <<  std::flush;
+                    break;
+                case CONSTANT_InterfaceMethodref:
+                    std::cout << " CONSTANT_InterfaceMethodRef\n" 
+                    << *static_cast<CONSTANT_InterfaceMethodref_info*>(el.info)
+                    << std::endl << std::flush; 
+                    break;
+                case CONSTANT_NameAndType:
+                    std::cout << " CONSTANT_NameAndType\n"
+                    << *static_cast<CONSTANT_NameAndType_info*>(el.info) 
+                    << std::endl << std::flush;
+                    break;
+                case CONSTANT_MethodHandle:
+                    std::cout << " CONSTANT_MethodHandle\n" << std::flush; 
+                    break;
+                case CONSTANT_MethodType:
+                    std::cout << " CONSTANT_MethodType\n" << std::flush; 
+                    break;
+                case CONSTANT_InvokeDynamic:
+                    std::cout << " CONSTANT_InvokeDynamic\n" << std::flush; 
+                    break;
+                default:
+                    throw std::runtime_error("Unknown tag in print_constant_pool");
+            }
+        }
+
+        std::cout << std::endl << std::flush;
+
+    }
+
     void read_constant_pool(void) {
         for(int i = 0; i < constant_pool_count-1; i++) {
             cp_info& el = constant_pool[i];
             el.tag = this->bfr.read_u8();
             switch(el.tag) {
                 case CONSTANT_Utf8:
-                    std::cout << " - CONSTANT_Utf8\n";
                     {
                         auto cn = new CONSTANT_Utf8_info;
                         cn->length = this->bfr.read_u16();
@@ -150,7 +226,6 @@ private:
                     }
                     break;
                 case CONSTANT_Integer:
-                    std::cout << " - CONSTANT_Integer\n";
                     {
                         auto cn = new CONSTANT_Integer_info;
                         union {
@@ -163,7 +238,6 @@ private:
                     }
                     break;
                 case CONSTANT_Float:
-                    std::cout << " - CONSTANT_Float\n";
                     {
                         auto cn = new CONSTANT_Float_info;
                         union {
@@ -176,7 +250,6 @@ private:
                     }
                     break;
                 case CONSTANT_Long:
-                    std::cout << " - CONSTANT_Long\n";
                     {
                         auto cn = new CONSTANT_Long_info;
                         uint64_t u64 = this->bfr.read_u64();
@@ -186,7 +259,6 @@ private:
                     }
                     break;
                 case CONSTANT_Double:
-                    std::cout << " - CONSTANT_Double\n";
                     {
                         auto cn = new CONSTANT_Double_info;
                         uint64_t u64 = this->bfr.read_u64();
@@ -196,15 +268,13 @@ private:
                     }
                     break;
                 case CONSTANT_Class:
-                    std::cout << " - CONSTANT_Class\n";
                     {
                         auto cn = new CONSTANT_Class_info;
                         cn->name_index = this->bfr.read_u16();
-                        el.info = cn;    
+                        el.info = cn;
                     }
                     break;
                 case CONSTANT_String:
-                    std::cout << " - CONSTANT_String\n";
                     {
                         auto cn = new CONSTANT_String_info;
                         cn->string_index = this->bfr.read_u16();
@@ -212,7 +282,6 @@ private:
                     }
                     break;
                 case CONSTANT_FieldRef:
-                    std::cout << " - CONSTANT_FieldRef\n";
                     {
                         auto cn = new CONSTANT_Fieldref_info;
                         cn->class_index = this->bfr.read_u16();
@@ -221,7 +290,6 @@ private:
                     }
                     break;
                 case CONSTANT_MethodRef:
-                    std::cout << " - CONSTANT_MethodRef\n";
                     {
                         auto cn = new CONSTANT_Methodref_info;
                         cn->class_index = this->bfr.read_u16();
@@ -230,7 +298,6 @@ private:
                     }
                     break;
                 case CONSTANT_InterfaceMethodref:
-                    std::cout << " - CONSTANT_InterfaceMethodref\n";
                     {
                         auto cn = new CONSTANT_InterfaceMethodref_info;
                         cn->class_index = this->bfr.read_u16();
@@ -239,7 +306,6 @@ private:
                     }
                     break;
                 case CONSTANT_NameAndType:
-                    std::cout << " - CONSTANT_NameAndType\n";
                     {
                         auto cn = new CONSTANT_NameAndType_info;
                         cn->name_index = this->bfr.read_u16();
@@ -248,7 +314,6 @@ private:
                     }
                     break;
                 case CONSTANT_MethodHandle:
-                    std::cout << " - CONSTANT_MethodHandle\n";
                     {
                         auto cn = new CONSTANT_MethodHandle_info;
                         cn->reference_kind = this->bfr.read_u8();
@@ -257,7 +322,6 @@ private:
                     }
                     break;
                 case CONSTANT_MethodType:
-                    std::cout << " - CONSTANT_MethodHandle\n";
                     {
                         auto cn = new CONSTANT_MethodType_info;
                         cn->descriptor_index = this->bfr.read_u16();
@@ -265,7 +329,6 @@ private:
                     }
                     break;
                 case CONSTANT_InvokeDynamic:
-                    std::cout << " - CONSTANT_InvokeDymamic\n";
                     {
                         auto cn = new CONSTANT_InvokeDynamic_info;
                         cn->bootstrap_method_attr_index = this->bfr.read_u16();
@@ -274,13 +337,35 @@ private:
                     }
                     break;
                 default:
-                    throw std::runtime_error("Unknown tag in constant pool");
+                    throw std::runtime_error("Unknown tag in constant pool: " + std::to_string((int)el.tag));
             }
         }
     }
 
+    void read_attribute_info_entry(attribute_info* ai) {
+        ai->attribute_name_index = this->bfr.read_u16();
+        ai->attribute_length     = this->bfr.read_u32();
+        ai->info = new uint8_t[ai->attribute_length];
+        this->bfr.read_buffer(reinterpret_cast<char*>(ai->info), ai->attribute_length);
+    }
+
     void read_fields(void) {
-        
+        for(int i = 0; i < fields_count; i++) {
+            auto& el = fields[i];
+
+            el.access_flags     = this->bfr.read_u16();
+            el.name_index       = this->bfr.read_u16();
+            el.descriptor_index = this->bfr.read_u16();
+
+            el.attributes_count = this->bfr.read_u16();
+            el.attributes = new attribute_info[el.attributes_count];
+            for(int j = 0; j < el.attributes_count; j++)
+                this->read_attribute_info_entry(el.attributes + j);
+        }
+    }
+
+    void read_methods(void) {
+
     }
 
 public:
@@ -324,7 +409,8 @@ public:
         constant_pool = new cp_info[constant_pool_count-1];
 
         this->read_constant_pool();
-        //return;
+        CONSTANT_info::constant_pool = this->constant_pool;
+        this->print_constant_pool();
 
         access_flags     = this->bfr.read_u16();
         this_class       = this->bfr.read_u16();
@@ -335,7 +421,9 @@ public:
         interfaces       = new uint16_t[interfaces_count];
 
         // need to grab the interfaces from the class file
-        this->bfr.read_buffer(reinterpret_cast<char*>(interfaces), interfaces_count*2);
+        for(int i = 0; i < interfaces_count; i++)
+            interfaces[i] = this->bfr.read_u16();
+
         {
             std::cout << "Interfaces: \n";
             for(int i = 0; i < interfaces_count; i++) {
@@ -348,17 +436,30 @@ public:
         fields           = new field_info[fields_count];
 
         // need to grab the fields from the class file
+        this->read_fields();
 
+        {
+            std::cout << "Fields:\n";
+            for(int i = 0; i < fields_count; i++) {
+
+            }
+        }
 
         methods_count    = this->bfr.read_u16();
+        std::cout << "Allocating space for " << methods_count << " method entries\n";
         methods          = new method_info[methods_count];
 
+        return;
+
         // need to grab the methods from the class file
+
 
         attributes_count = this->bfr.read_u16();
         attributes       = new attribute_info[attributes_count];
 
         // need to grab the attributes from the class file
+        for(int i = 0; i < attributes_count; i++)
+            this->read_attribute_info_entry(this->attributes + i);
 
     }
 
