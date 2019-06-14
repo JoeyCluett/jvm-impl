@@ -156,7 +156,7 @@ struct CONSTANT_Methodref_info : public CONSTANT_info {
 
 };
 
-struct CONSTANT_InterfaceMethodref_info : public CONSTANT_info{
+struct CONSTANT_InterfaceMethodref_info : public CONSTANT_info {
     uint16_t class_index;
     uint16_t name_and_type_index;
 

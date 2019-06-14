@@ -8,7 +8,7 @@ public class other {
         System.out.println("Hello World");
     }
 
-    public static final int b    = -1;
+    public static final int b    = -2;
     public static final long c   = 3L;
     public static final float d  = 4.0f;
     public static final double e = 5.0;
@@ -30,7 +30,9 @@ public class other {
     }
     public static void main(String[] args) {
         System.out.println(other.b);
-        System.out.println(other.b);
+        System.out.println(other.c);
+        System.out.println(other.d);
+        System.out.println(other.e);
     }
 
 }

@@ -133,7 +133,7 @@ private:
     uint16_t        attributes_count;
     attribute_info* attributes = NULL;
 
-    void print_constant_pool(void) {
+    void print_constant_pool(int num = -1) {
 
         auto pad_number = [](int i, int len) -> std::string {
             auto str = std::to_string(i);
@@ -142,7 +142,12 @@ private:
             return str;
         };
 
-        for(int i = 0; i < constant_pool_count-1; i++) {
+        // default is to print the whole list
+        if(num == -1)
+            num = this->constant_pool_count-1;
+
+        //for(int i = 0; i < constant_pool_count-1; i++) {
+        for(int i = 0; i < num; i++) {
             std::cout << pad_number(i, 5);
             cp_info& el = constant_pool[i];
             switch(el.tag) {
@@ -201,7 +206,9 @@ private:
                     std::cout << " CONSTANT_InvokeDynamic\n" << std::flush; 
                     break;
                 default:
-                    throw std::runtime_error("Unknown tag in print_constant_pool");
+                    std::cout << std::endl << std::flush;
+                    return;
+                    //throw std::runtime_error("Unknown tag in print_constant_pool");
             }
         }
 
@@ -337,6 +344,8 @@ private:
                     }
                     break;
                 default:
+                    this->print_constant_pool(i);
+                    //continue;
                     throw std::runtime_error("Unknown tag in constant pool: " + std::to_string((int)el.tag));
             }
         }
