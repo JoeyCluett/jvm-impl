@@ -54,6 +54,7 @@ struct Code_attribute : public attribute_info {
         this->max_stack = bfr.read_u16();
         this->max_locals = bfr.read_u16();
 
+        // read correct amount of code
         this->code_length = bfr.read_u32();
         this->code = new uint8_t[this->code_length];
         bfr.read_buffer(reinterpret_cast<char*>(this->code), this->code_length);
@@ -79,7 +80,7 @@ struct Code_attribute : public attribute_info {
 
 struct verification_type_info {
 
-    uint8_t tag;
+    ITEM tag;
 
     union {
         struct {
@@ -89,12 +90,87 @@ struct verification_type_info {
         struct {
             uint16_t offset;
         } Uninitialized_variable_info;
-
     };
+
+    void init(BinaryFileReader& bfr) {
+        
+    }
 
 };
 
+struct stack_map_frame {
 
+    // the offical JVM spec doesnt call for both of 
+    // these members but i want them so they are here
+    FRAME_TYPE frame_type;
+    uint8_t tag;
+
+    union {
+
+        struct {
+            verification_type_info stack[1];
+        } same_locals_1_stack_item_frame;
+
+        struct {
+            uint16_t offset_delta;
+            verification_type_info stack[1];
+        } same_locals_1_stack_item_frame_extended;
+
+        struct {
+            uint16_t offset_delta;
+        } chop_frame;
+
+        struct {
+            uint16_t offset_delta;
+        } same_frame_extended;
+
+        struct {
+            uint16_t offset_delta;
+            verification_type_info* locals; // locals[frame_type - 251]
+        } append_frame;
+
+        struct {
+            uint16_t offset_delta;
+            uint16_t number_of_locals;
+            verification_type_info* locals; // locals[number_of_locals]
+            uint16_t number_of_stack_items;
+            verification_type_info* stack;  // stack[number_of_stack_items]
+        } full_frame;
+
+    };
+
+    void init(BinaryFileReader& bfr) {
+        this->tag = bfr.read_u8();
+        this->frame_type = get_frame_type_from_tag(this->tag);
+    
+        switch(this->frame_type) {
+            case FRAME_TYPE::SAME:                               // 0-63
+                break;
+            case FRAME_TYPE::SAME_LOCALS_1_STACK_ITEM:           // 64-127
+                this->same_locals_1_stack_item_frame.stack[0].init(bfr);
+            case FRAME_TYPE::SAME_LOCALS_1_STACK_ITEM_EXTENDED:  // 247
+            case FRAME_TYPE::CHOP:                               // 249-250
+            case FRAME_TYPE::SAME_FRAME_EXTENDED:                // 251
+            case FRAME_TYPE::APPEND:                             // 252-254
+            case FRAME_TYPE::FULL_FRAME:                         // 255
+            default:
+
+        };
+
+    }
+
+    ~stack_map_frame(void) {
+        // take care of the dynamic memory used
+        if(this->frame_type == FRAME_TYPE::APPEND)
+            delete[] this->append_frame.locals;
+        else if(this->frame_type == FRAME_TYPE::FULL_FRAME) {
+            delete[] this->full_frame.locals;
+            delete[] this->full_frame.stack;
+        }
+
+    }
+
+};
 
 struct StackMapTable_attribute : public attribute_info {
 

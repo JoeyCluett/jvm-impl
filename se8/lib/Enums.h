@@ -141,3 +141,27 @@ std::string ITEM_flag_string(ITEM i) {
             throw std::runtime_error("ITEM_flag_string : unknown ITEM::flag type");
     }
 }
+
+enum class FRAME_TYPE : uint8_t {
+
+    SAME,                               // 0-63
+    SAME_LOCALS_1_STACK_ITEM,           // 64-127
+    SAME_LOCALS_1_STACK_ITEM_EXTENDED,  // 247
+    CHOP,                               // 249-250
+    SAME_FRAME_EXTENDED,                // 251
+    APPEND,                             // 252-254
+    FULL_FRAME                          // 255
+
+};
+
+FRAME_TYPE get_frame_type_from_tag(uint8_t input) {
+    if(input >= 0 && input <= 63)         return FRAME_TYPE::SAME;
+    else if(input >= 64 && input <= 127)  return FRAME_TYPE::SAME_LOCALS_1_STACK_ITEM;
+    else if(input == 247)                 return FRAME_TYPE::SAME_LOCALS_1_STACK_ITEM_EXTENDED;
+    else if(input == 249 || input == 250) return FRAME_TYPE::CHOP;
+    else if(input == 251)                 return FRAME_TYPE::SAME_FRAME_EXTENDED;
+    else if(input >= 252 && input <= 254) return FRAME_TYPE::APPEND;
+    else if(input == 255)                 return FRAME_TYPE::FULL_FRAME;
+    else
+        throw std::runtime_error("get_frame_type_from_tag unrecognized value: " + std::to_string(input));  
+}
