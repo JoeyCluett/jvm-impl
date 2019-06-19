@@ -561,6 +561,8 @@ struct element_value_pair_entry {
     element_value* value;
     void init(BinaryFileReader& bfr);
 
+    ~element_value_pair_entry(void);
+
 };
 
 struct annotation {
@@ -642,6 +644,10 @@ void element_value_pair_entry::init(BinaryFileReader& bfr) {
     this->value->init(bfr);
 }
 
+element_value_pair_entry::~element_value_pair_entry(void) {
+    delete this->value;
+}
+
 struct RuntimeVisibleAnnotations_attribute : public attribute_info {
 
     uint16_t num_annotations;
@@ -655,23 +661,224 @@ struct RuntimeVisibleAnnotations_attribute : public attribute_info {
         for(int i = 0; i < this->num_annotations; i++)
             this->annotations[i].init(bfr);
     }
+
+    ~RuntimeVisibleAnnotations_attribute(void) {
+        delete[] this->annotations;
+    }
+
 };
 
 // ============================================================================
 // RuntimeInvisibleAnnotations
 // ============================================================================
 
+struct RuntimeInvisibleAnnotations_attribute : public attribute_info {
+
+    uint16_t num_annotations;
+    annotation* annotations;
+
+    RuntimeInvisibleAnnotations_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
+            : attribute_info(attribute_name_index, attribute_length) {
+
+        this->num_annotations = bfr.read_u16();
+        this->annotations = new annotation[this->num_annotations];
+        for(int i = 0; i < this->num_annotations; i++)
+            this->annotations[i].init(bfr);
+    }
+
+    ~RuntimeInvisibleAnnotations_attribute(void) {
+        delete[] this->annotations;
+    }
+
+};
+
 // ============================================================================
 // RuntimeVisibleParameterAnnotations
 // ============================================================================
+
+struct paramater_annotation_entry {
+
+    uint16_t num_annotations;
+    annotation* annotations;
+
+    void init(BinaryFileReader& bfr) {
+        this->num_annotations = bfr.read_u16();
+        this->annotations = new annotation[this->num_annotations];
+        for(int i = 0; i < this->num_annotations; i++)
+            this->annotations[i].init(bfr);
+    }
+
+};
+
+struct RuntimeVisibleParameterAnnotations_attribute : public attribute_info {
+
+    uint16_t num_parameters;
+    paramater_annotation_entry* parameter_annotations;
+
+    RuntimeVisibleParameterAnnotations_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
+            : attribute_info(attribute_name_index, attribute_length) {
+
+        this->num_parameters = bfr.read_u16();
+        this->parameter_annotations = new paramater_annotation_entry[this->num_parameters];
+        for(int i = 0; i < this->num_parameters; i++)
+            this->parameter_annotations[i].init(bfr);
+
+    }
+
+    ~RuntimeVisibleParameterAnnotations_attribute(void) {
+        delete[] this->parameter_annotations;
+    }
+
+};
 
 // ============================================================================
 // RuntimeInvisibleParameterAnnotations
 // ============================================================================
 
+struct RuntimeInvisibleParameterAnnotations_attribute : public attribute_info {
+
+    uint16_t num_parameters;
+    paramater_annotation_entry* parameter_annotations;
+
+    RuntimeInvisibleParameterAnnotations_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
+            : attribute_info(attribute_name_index, attribute_length) {
+
+        this->num_parameters = bfr.read_u16();
+        this->parameter_annotations = new paramater_annotation_entry[this->num_parameters];
+        for(int i = 0; i < this->num_parameters; i++)
+            this->parameter_annotations[i].init(bfr);
+
+    }
+
+    ~RuntimeInvisibleParameterAnnotations_attribute(void) {
+        delete[] this->parameter_annotations;
+    }
+
+};
+
 // ============================================================================
 // RuntimeVisibleTypeAnnotations
 // ============================================================================
+
+struct type_annotation {
+
+    uint8_t target_type;
+
+    union {
+
+        struct {
+            uint8_t type_parameter_index;
+        } type_parameter_target;
+        
+        struct {
+            uint16_t supertype_index;
+        } supertype_target;
+        
+        struct {
+            uint8_t type_parameter_index;
+            uint8_t bound_index;
+        } type_parameter_bound_target;
+        
+        struct {
+            // nothing in this one
+        } empty_target;
+        
+        struct { 
+            uint8_t formal_parameter_index;
+        } formal_parameter_target;
+        
+        struct {
+            uint16_t throws_type_index;
+        } throws_target;
+        
+        struct { 
+
+            uint16_t table_length;
+
+            struct table_entry_t {
+                uint16_t start_pc;
+                uint16_t length;
+                uint16_t index; 
+            };
+
+            table_entry_t* table;
+
+        } localvar_target;
+        
+        struct {
+
+            uint16_t exception_table_index;
+
+        } catch_target;
+        
+        struct {
+
+            uint16_t offset;
+
+        } offset_target;
+        
+        struct {
+
+            uint16_t offset;
+            uint8_t type_argument_index;
+
+        } type_argument_target;
+
+    } target_info;
+
+    type_path target_path;
+    
+    uint16_t type_index;
+    
+    uint16_t num_element_value_pairs;
+    element_value_pair_entry* element_value_pairs;
+
+    void init(BinaryFileReader& bfr) {
+        this->target_type = bfr.read_u8();
+
+        switch(this->target_type) {
+            case 0x00: case 0x01:
+
+            case 0x10:
+            
+            case 0x11: case 0x12:
+            
+            case 0x13: case 0x14: case 0x15:
+            
+            case 0x16:
+            
+            case 0x17:
+            
+            case 0x40: case 0x41:
+            
+            case 0x42:
+            
+            case 0x43: case 0x44: case 0x45: case 0x46:
+            
+            case 0x47: case 0x48: case 0x49: case 0x4A: case 0x4B:
+            
+            default:
+                throw std::runtime_error("invalid target_type for type_annotation");
+        }
+
+    }
+
+};
+
+struct RuntimeVisibleTypeAnnotations_attribute : public attribute_info {
+
+    uint16_t num_annotations;
+    type_annotation* annotations;
+
+    RuntimeVisibleTypeAnnotations_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
+            : attribute_info(attribute_name_index, attribute_length) {
+
+        this->num_annotations = bfr.read_u16();
+        this->annotations = new type_annotation[this->num_annotations];
+
+    }
+
+};
 
 // ============================================================================
 // RuntimeInvisibleTypeAnnotations
@@ -688,6 +895,25 @@ struct RuntimeVisibleAnnotations_attribute : public attribute_info {
 // ============================================================================
 // MethodParameters
 // ============================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 // convenience function definition
