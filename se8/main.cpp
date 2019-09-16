@@ -1,5 +1,16 @@
 #include <iostream>
 #include <ClassFile.h>
+#include <jre/InstructionMnemonics.h>
+
+/*
+    For the purposes of this JVM implementation. specify the location of a 
+    valid collection of Java class files. I extracted mine from 
+    /usr/lib/jvm/default-java/lib/ct.sym
+
+    The folder with the extracted libs is at 
+    $HOME/jvmextractedlibs/META-INF/sym/rt.jar/
+
+*/
 
 using namespace std;
 

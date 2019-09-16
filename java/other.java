@@ -11,6 +11,10 @@ public class other {
 
         System.out.println(M_math.add());
         System.out.println(M_math.pi);
+
+        String s = "Hello World";
+        System.out.println(s);
+
     }
 
 }
