@@ -4,35 +4,13 @@
 
 public class other {
 
-    public void say_hello() {
-        System.out.println("Hello World");
-    }
+    public static math M_math;
 
-    public static final int b    = -2;
-    public static final long c   = 3L;
-    public static final float d  = 4.0f;
-    public static final double e = 5.0;
-
-    public int get_int() {
-        return other.b;
-    }
-
-    public long get_long() {
-        return other.c;
-    }
-
-    public float get_float() {
-        return other.d;
-    }
-
-    public double get_double() {
-        return other.e;
-    }
     public static void main(String[] args) {
-        System.out.println(other.b);
-        System.out.println(other.c);
-        System.out.println(other.d);
-        System.out.println(other.e);
+        other.M_math = new math();
+
+        System.out.println(M_math.add());
+        System.out.println(M_math.pi);
     }
 
 }

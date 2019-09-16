@@ -4,7 +4,11 @@
 #include "Enums.h"
 #include "ConstantPool.h"
 #include "Fields.h"
+#include "Methods.h"
+#include "Attributes.h"
 #include <vector>
+
+#define PRINTFLAG(fvalue, enumname, os) if(flags & fvalue) os << #enumname << ' '
 
 class ClassFile {
 private:
@@ -12,18 +16,22 @@ private:
     // used to read properly formatted binary data from class files
     BinaryFileReader bfr;
 
-    uint32_t  magic;
-    uint16_t  minor_version;
-    uint16_t  major_version;
-    uint16_t  constant_pool_count;
-    cp_info** constant_pool;
-    uint16_t  access_flags;
-    uint16_t  this_class;
-    uint16_t  super_class;
-    uint16_t  interfaces_count;
-    uint16_t* interfaces;
-    uint16_t  fields_count;
-
+    uint32_t         magic;
+    uint16_t         minor_version;
+    uint16_t         major_version;
+    uint16_t         constant_pool_count;
+    cp_info**        constant_pool;
+    uint16_t         access_flags;
+    uint16_t         this_class;
+    uint16_t         super_class;
+    uint16_t         interfaces_count;
+    uint16_t*        interfaces;
+    uint16_t         fields_count;
+    field_info*      fields;
+    uint16_t         methods_count;
+    method_info*     methods;
+    uint16_t         attributes_count;
+    attribute_info** attributes;
 
     void load_preface(void) {
         this->magic = this->bfr.read_u32();
@@ -92,34 +100,62 @@ private:
 
     void load_fields(void) {
         this->fields_count = this->bfr.read_u16();
+        this->fields = new field_info[this->fields_count];
+
+        for(int i = 0; i < this->fields_count; i++)
+            this->fields[i].init(this->bfr);
+
+    }
+
+    void load_methods(void) {
+        this->methods_count = this->bfr.read_u16();
+        this->methods = new method_info[this->methods_count];
+
+        for(int i = 0; i < this->methods_count; i++)
+            this->methods[i].init(this->bfr);
+    }
+
+    void load_attributes(void) {
+        this->attributes_count = this->bfr.read_u16();
+        this->attributes = new attribute_info*[this->attributes_count];
+    
+        for(int i = 0; i < this->attributes_count; i++) {
+            auto s = ::place_attribute_info(this->bfr, this->attributes[i]);
+        }
+
     }
 
     // ====================================
     // PRINT functions
     // ====================================
 
-    void print_preface(void) {
-        std::cout << "Magic number: "
+    void print_preface(std::ostream& os = std::cout) {
+        os << "Magic number: "
             << std::hex << this->magic << "\nClass File version: " 
             << std::dec << this->major_version << "." << this->minor_version 
             << std::endl << std::flush;
 
-        std::cout << "Java Version:       ";
+        os << "Java Version:       ";
         switch(this->major_version) {
-            case 48: std::cout << "Java 1.4\n"; break;
-            case 49: std::cout << "Java 5\n"; break;
-            case 50: std::cout << "Java 6\n"; break;
-            case 51: std::cout << "Java 7\n"; break;
-            case 52: std::cout << "Java 8\n"; break;
-            case 53: std::cout << "Java 9\n"; break;
+            case 48: os << "Java 1.4\n"; break;
+            case 49: os << "Java 5\n";   break;
+            case 50: os << "Java 6\n";   break;
+            case 51: os << "Java 7\n";   break;
+            case 52: os << "Java 8\n";   break;
+            case 53: os << "Java 9\n";   break;
             default:
-                std::cout << "UNKNOWN\n" << std::flush;
+                os << "UNKNOWN\n" << std::flush;
                 throw std::runtime_error("Unknown java version used");
         }
-        std::cout << std::flush;
+        os << std::flush;
+
+        // this JVM implementation only supports SE8
+        if(this->major_version != 52)
+            throw std::runtime_error("JVM implementation only supports SE8");
+
     }
 
-    void print_constant_pool(std::ostream& os) {
+    void print_constant_pool(std::ostream& os = std::cout) {
         // copy raw pointer over
         global_constant_pool = this->constant_pool;
 
@@ -165,63 +201,82 @@ private:
         }
     }
 
-    void print_access_flags(void) {
+    void print_class_access_flags(uint16_t flags, std::ostream& os = std::cout) {
 
-        std::cout << "Class access flags: ";
+        PRINTFLAG(0x0001, ACC_PUBLIC,     os);
+        PRINTFLAG(0x0010, ACC_FINAL,      os);
+        PRINTFLAG(0x0020, ACC_SUPER,      os);
+        PRINTFLAG(0x0200, ACC_INTERFACE,  os);
+        PRINTFLAG(0x0400, ACC_ABSTRACT,   os);
+        PRINTFLAG(0x1000, ACC_SYNTHETIC,  os);
+        PRINTFLAG(0x2000, ACC_ANNOTATION, os);
+        PRINTFLAG(0x4000, ACC_ENUM,       os);
 
-        if(this->access_flags & 0x0001)
-            std::cout << "ACC_PUBLIC ";
-
-        if(this->access_flags & 0x0010)
-            std::cout << "ACC_FINAL ";
-
-        if(this->access_flags & 0x0020)
-            std::cout << "ACC_SUPER ";
-
-        if(this->access_flags & 0x0200)
-            std::cout << "ACC_INTERFACE ";
-
-        if(this->access_flags & 0x0400)
-            std::cout << "ACC_ABSTRACT ";
-
-        if(this->access_flags & 0x1000)
-            std::cout << "ACC_SYNTHETIC ";
-
-        if(this->access_flags & 0x2000)
-            std::cout << "ACC_ANNOTATION ";
-
-        if(this->access_flags & 0x4000)
-            std::cout << "ACC_ENUMERATION ";
-
-        std::cout << std::endl << std::flush;
+        os << std::endl << std::flush;
 
     }
 
-    void print_this_class(void) {
+    void print_field_access_flags(uint16_t flags, std::ostream& os = std::cout) {
+        
+        PRINTFLAG(0x0001, ACC_PUBLIC,    os);
+        PRINTFLAG(0x0002, ACC_PRIVATE,   os);
+        PRINTFLAG(0x0004, ACC_PROTECTED, os);
+        PRINTFLAG(0x0008, ACC_STATIC,    os);
+        PRINTFLAG(0x0010, ACC_FINAL,     os);
+        PRINTFLAG(0x0040, ACC_VOLATILE,  os);
+        PRINTFLAG(0x0080, ACC_TRANSIENT, os);
+        PRINTFLAG(0x1000, ACC_SYNTHETIC, os);
+        PRINTFLAG(0x4000, ACC_ENUM,      os);
+
+        os << std::endl << std::flush;
+
+    }
+
+    void print_method_access_flags(uint16_t flags, std::ostream& os = std::cout) {
+
+        PRINTFLAG(0x0001, ACC_PUBLIC,       os);	
+        PRINTFLAG(0x0002, ACC_PRIVATE,      os);	
+        PRINTFLAG(0x0004, ACC_PROTECTED,    os);	
+        PRINTFLAG(0x0008, ACC_STATIC,       os);	
+        PRINTFLAG(0x0010, ACC_FINAL,        os);	
+        PRINTFLAG(0x0020, ACC_SYNCHRONIZED, os);	
+        PRINTFLAG(0x0040, ACC_BRIDGE,       os);	
+        PRINTFLAG(0x0080, ACC_VARARGS,      os);	
+        PRINTFLAG(0x0100, ACC_NATIVE,       os);	
+        PRINTFLAG(0x0400, ACC_ABSTRACT,     os);	
+        PRINTFLAG(0x0800, ACC_STRICT,       os);	
+        PRINTFLAG(0x1000, ACC_SYNTHETIC,    os);
+
+        os << std::endl << std::flush;
+
+    }
+
+    void print_this_class(std::ostream& os = std::cout) {
         global_constant_pool = this->constant_pool;
-        std::cout << "This class:         " << ::string_of(this->this_class) << std::endl;
+        os << "This class:         " << ::string_of(this->this_class) << std::endl;
     }
 
-    void print_super_class(void) {
-        std::cout << "Super class:        ";
+    void print_super_class(std::ostream& os = std::cout) {
+        os << "Super class:        ";
 
         if(super_class) {
-            std::cout << ::string_of(this->super_class) << std::endl;
+            os << ::string_of(this->super_class) << std::endl;
         }
         else {
-            std::cout << "NONE\n";
+            os << "NONE\n";
         }
 
-        std::cout << std::flush;
+        os << std::flush;
     }
 
-    void print_interfaces(void) {
-        std::cout << "Interfaces:";
+    void print_interfaces(std::ostream& os = std::cout) {
+
+        os << "Interfaces:";
         for(int i = 0; i < this->interfaces_count; i++) {
             if(this->constant_pool[this->interfaces[i]-1]->tag == CONSTANT::Class) {
                 // good to go
                 global_constant_pool = this->constant_pool;
-                std::cout << "\n    " << ::string_of(this->interfaces[i]);
+                os << "\n    " << ::string_of(this->interfaces[i]);
             }
             else {
                 throw std::runtime_error("print_interfaces : Expected constant pool entry is not CONSTANT_Class_info");
@@ -229,8 +284,56 @@ private:
         }
 
         if(!this->interfaces_count)
-            std::cout << "         NONE";
-        std::cout << std::endl << std::flush;
+            os << "         NONE";
+        os << std::endl << std::flush;
+    }
+
+    void print_fields(std::ostream& os = std::cout) {
+        os << "Fields count:       " << this->fields_count << std::endl << std::flush;
+
+        for(int i = 0; i < this->fields_count; i++) {
+            os << pad_left("#" + std::to_string(i), 7);
+        
+            os << "   Flags:      ";
+            this->print_field_access_flags(this->fields[i].access_flags, os);
+            
+            os << "          Name:       '" 
+                << ::string_of(this->fields[i].name_index) 
+                << "'\n" << std::flush;
+
+            os << "          Descriptor: "
+                << ::string_of(this->fields[i].descriptor_index)
+                << std::endl << std::flush;
+
+            os << "          Num attributes: " << this->fields[i].attributes_count
+                << std::endl << std::flush;
+
+            os << std::endl << std::flush;
+        }
+    }
+
+    void print_methods(std::ostream& os = std::cout) {
+        os << "Methods count:       " << this->methods_count << std::endl << std::flush;
+
+        for(int i = 0; i < this->methods_count; i++) {
+            os << pad_left("#" + std::to_string(i), 7);
+            
+            os << "   Flags:      ";
+            this->print_method_access_flags(this->methods[i].access_flags, os);
+            
+            os << "          Name:       '" 
+                << ::string_of(this->methods[i].name_index) 
+                << "'\n" << std::flush;
+
+            os << "          Descriptor: "
+                << ::string_of(this->methods[i].descriptor_index)
+                << std::endl << std::flush;
+
+            os << "          Num attributes: " << this->methods[i].attributes_count
+                << std::endl << std::flush;
+
+            os << std::endl << std::flush;
+        }
     }
 
 public:
@@ -242,19 +345,36 @@ public:
 
         // everything related to loading the class file goes here
         this->load_preface();
+        this->print_preface();
+
         this->load_constant_pool();
-        this->load_misc();
+        this->print_constant_pool();
+        
+        this->load_misc(); // loads 'access_flags', 'this_class', and 'super_class'
+        std::cout << "Class access flags: ";
+        this->print_class_access_flags(this->access_flags);
+        this->print_this_class();
+        this->print_super_class();
+
+        this->load_interfaces();
+        this->print_interfaces();
+
+        this->load_fields();
+        this->print_fields();
+
+        this->load_methods();
+        this->print_methods();
 
         this->bfr.close();
     }
 
     friend std::ostream& operator<<(std::ostream& os, ClassFile& cf) {
         
-        cf.print_preface();
-        cf.print_access_flags();
-        cf.print_this_class();
-        cf.print_super_class();
-        cf.print_interfaces();
+        cf.print_preface(os);
+        cf.print_class_access_flags(cf.access_flags, os);
+        cf.print_this_class(os);
+        cf.print_super_class(os);
+        cf.print_interfaces(os);
         cf.print_constant_pool(os);
 
         return os;

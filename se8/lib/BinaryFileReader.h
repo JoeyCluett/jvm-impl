@@ -3,6 +3,11 @@
 #include <fstream>
 #include <utility>
 
+/*
+    This class assumes you are working 
+    on a 64-bit little-endian ISA like AMD64
+*/
+
 class BinaryFileReader {
 private:
     std::fstream fs;

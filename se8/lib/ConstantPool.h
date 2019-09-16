@@ -439,6 +439,7 @@ std::string string_of(int index) {
             return 
                 ("<bootstrap_method_array_index>." 
                 + ::string_of(static_cast<CONSTANT_InvokeDynamic_info*>(tmp)->name_and_type_index));
+            break;
         default:
             throw std::runtime_error("Unknown tag in string_of " + std::to_string(static_cast<int>(tmp->tag)));
     };

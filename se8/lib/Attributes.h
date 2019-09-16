@@ -13,10 +13,13 @@ struct attribute_info {
         this->attribute_length = len;
     }
 
+    // purely virtual destructor
+    virtual ~attribute_info() {  }
+
 };
 
 // convenience function
-void place_attribute_info(BinaryFileReader& bfr, attribute_info*&);
+std::string place_attribute_info(BinaryFileReader& bfr, attribute_info*&);
 
 // ============================================================================
 // ConstantValue
@@ -559,6 +562,9 @@ struct element_value_pair_entry {
 
     uint16_t element_name_index;
     element_value* value;
+
+    element_value_pair_entry(void) { }
+
     void init(BinaryFileReader& bfr);
 
     ~element_value_pair_entry(void);
@@ -570,12 +576,18 @@ struct annotation {
     uint16_t num_element_value_pairs;
     element_value_pair_entry* element_value_pairs;
 
+    annotation(void) = default;
+
     void init(BinaryFileReader& bfr) {
         this->type_index = bfr.read_u16();
         this->num_element_value_pairs = bfr.read_u16();
         this->element_value_pairs = new element_value_pair_entry[this->num_element_value_pairs];
         for(int i = 0; i < this->num_element_value_pairs; i++)
             this->element_value_pairs[i].init(bfr);
+    }
+
+    ~annotation(void) {
+        delete[] this->element_value_pairs;
     }
 
 };
@@ -594,7 +606,7 @@ struct element_value {
 
         uint16_t class_info_index;
 
-        annotation annotation_value;
+        annotation* annotation_value;
 
         struct {
             uint16_t num_values;
@@ -602,6 +614,9 @@ struct element_value {
         } array_value;
 
     } value;
+
+    // empty constructor to make compiler happy
+    element_value(void) = default;
 
     void init(BinaryFileReader& bfr) {
         bfr.read_buffer(reinterpret_cast<char*>(this->tag), 1);
@@ -619,7 +634,8 @@ struct element_value {
                 this->value.class_info_index = bfr.read_u16();
                 break;
             case '@':
-                this->value.annotation_value.init(bfr);
+                this->value.annotation_value = new annotation;
+                this->value.annotation_value->init(bfr);
                 break;
             case '[':
                 {
@@ -633,6 +649,13 @@ struct element_value {
             default:
                 throw std::runtime_error("element_value error: unknown tag value");
         }
+    }
+
+    ~element_value(void) {
+        if(this->tag == '[')
+            delete[] this->value.array_value.values;
+        else if(this->tag == '@')
+            delete this->value.annotation_value;
     }
 
 };
@@ -706,6 +729,10 @@ struct paramater_annotation_entry {
         this->annotations = new annotation[this->num_annotations];
         for(int i = 0; i < this->num_annotations; i++)
             this->annotations[i].init(bfr);
+    }
+
+    ~paramater_annotation_entry(void) {
+        delete[] this->annotations;
     }
 
 };
@@ -803,6 +830,18 @@ struct type_annotation {
 
             table_entry_t* table;
 
+            void init(BinaryFileReader& bfr) {
+                this->table_length = bfr.read_u16();
+                this->table = new table_entry_t[this->table_length];
+
+                for(int i = 0; i < this->table_length; i++) {
+                    this->table[i].start_pc = bfr.read_u16();
+                    this->table[i].length   = bfr.read_u16();
+                    this->table[i].index    = bfr.read_u16();
+                }
+
+            }
+
         } localvar_target;
         
         struct {
@@ -826,7 +865,29 @@ struct type_annotation {
 
     } target_info;
 
-    type_path target_path;
+    struct { // type_path
+
+        uint8_t path_length;
+
+        struct type_path_entry_t {
+            uint8_t type_path_kind;
+            uint8_t type_argument_index;
+        };
+
+        type_path_entry_t* path;
+
+        void init(BinaryFileReader& bfr) {
+            this->path_length = bfr.read_u8();
+            this->path        = new type_path_entry_t[this->path_length];
+
+            for(int i = 0; i < this->path_length; i++) {
+                this->path[i].type_path_kind      = bfr.read_u8();
+                this->path[i].type_argument_index = bfr.read_u8();
+            }
+
+        }
+
+    } target_path;
     
     uint16_t type_index;
     
@@ -836,31 +897,126 @@ struct type_annotation {
     void init(BinaryFileReader& bfr) {
         this->target_type = bfr.read_u8();
 
-        switch(this->target_type) {
-            case 0x00: case 0x01:
+        /*
+            0x00	type parameter declaration of generic class or interface	                 type_parameter_target
+            0x01	type parameter declaration of generic method or constructor	                 type_parameter_target
+            0x10	type in extends or implements clause of class declaration                    supertype_target
+                    (including the direct superclass or direct superinterface 
+                    of an anonymous class declaration), or in extends clause 
+                    of interface declaration	                                                 
+            0x11	type in bound of type parameter declaration of generic class or interface	 type_parameter_bound_target
+            0x12	type in bound of type parameter declaration of generic method or constructor type_parameter_bound_target
+            0x13	type in field declaration	                                                 empty_target
+            0x14	return type of method, or type of newly constructed object	                 empty_target
+            0x15	receiver type of method or constructor	                                     empty_target
+            0x16	type in formal parameter declaration of method, constructor, or lambda       formal_parameter_target
+                    expression	                                                                 
+            0x17	type in throws clause of method or constructor	                             throws_target
+            0x40	type in local variable declaration	                                         localvar_target
+            0x41	type in resource variable declaration	                                     localvar_target
+            0x42	type in exception parameter declaration	                                     catch_target
+            0x43	type in instanceof expression	                                             offset_target
+            0x44	type in new expression	                                                     offset_target
+            0x45	type in method reference expression using ::new	                             offset_target
+            0x46	type in method reference expression using ::Identifier	                     offset_target
+            0x47	type in cast expression	                                                     type_argument_target
+            0x48	type argument for generic constructor in new expression or explicit          type_argument_target
+                    constructor invocation statement	                                         
+            0x49	type argument for generic method in method invocation expression	         type_argument_target
+            0x4A	type argument for generic constructor in method reference expression         type_argument_target
+                    using ::new	                                                                 
+            0x4B	type argument for generic method in method reference expression              type_argument_target 
+                    using ::Identifier	
+        */
 
-            case 0x10:
-            
-            case 0x11: case 0x12:
-            
-            case 0x13: case 0x14: case 0x15:
-            
-            case 0x16:
-            
-            case 0x17:
-            
-            case 0x40: case 0x41:
-            
-            case 0x42:
-            
-            case 0x43: case 0x44: case 0x45: case 0x46:
-            
-            case 0x47: case 0x48: case 0x49: case 0x4A: case 0x4B:
-            
-            default:
+        switch(this->target_type) {
+            case 0x00: case 0x01: // type_parameter_target
+                this->target_info.type_parameter_target.type_parameter_index = bfr.read_u8();
+                break;
+
+            case 0x10: // supertype_target
+                this->target_info.supertype_target.supertype_index = bfr.read_u16();
+                break;
+
+            case 0x11: case 0x12: // type_parameter_bound_target
+                this->target_info.type_parameter_bound_target.type_parameter_index = bfr.read_u8();
+                this->target_info.type_parameter_bound_target.bound_index          = bfr.read_u8();
+                break;
+
+            case 0x13: case 0x14: case 0x15: // empty_target
+                break; // dont actually need to grab anything
+
+            case 0x16: // formal_paramater_target
+                this->target_info.formal_parameter_target.formal_parameter_index = bfr.read_u8();
+                break;
+
+            case 0x17: // throws_target
+                this->target_info.throws_target.throws_type_index = bfr.read_u16();
+                break;
+
+            case 0x40: case 0x41: // localvar_target
+                {
+                    /*
+                    uint16_t table_length = bfr.read_u16();
+                    this->target_info.localvar_target.table_length = table_length;
+                    this->target_info.localvar_target.table = new table_entry_t[table_length]
+                    auto* table = this->target_info.localvar_target.table;
+
+                    for(int i = 0; i < table_length; i++) {
+                        table[i].start_pc = bfr.read_u16();
+                        table[i].length   = bfr.read_u16();
+                        table[i].index    = bfr.read_u16();
+                    }
+                    */
+
+                    this->target_info.localvar_target.init(bfr);
+
+                }
+                break;
+
+            case 0x42: // catch_target
+                this->target_info.catch_target.exception_table_index = bfr.read_u16();
+                break;
+
+            case 0x43: case 0x44: case 0x45: case 0x46: // offset_target
+                this->target_info.offset_target.offset = bfr.read_u16();
+                break;
+
+            case 0x47: case 0x48: case 0x49: case 0x4A: case 0x4B: // type_argument_target
+                this->target_info.type_argument_target.offset = bfr.read_u16();
+                this->target_info.type_argument_target.type_argument_index = bfr.read_u8();
+                break;
+
+            default: // none of the above. something happened
                 throw std::runtime_error("invalid target_type for type_annotation");
         }
 
+        /*
+        uint8_t path_length           = bfr.read_u8();
+        this->target_path.path_length = path_length;
+        this->target_path.path        = new target_path.type_path_entry_t[path_length];
+        for(int i = 0; i < path_length; i++) {
+            this->target_path.path[i].type_path_kind = bfr.read_u8();
+            this->target_path.path[i].type_argument_index = bfr.read_u8();
+        }
+        */
+        this->target_path.init(bfr);
+
+        this->type_index = bfr.read_u16();
+
+        uint16_t num_pairs = bfr.read_u16();
+        this->num_element_value_pairs = num_pairs;
+        this->element_value_pairs = new element_value_pair_entry[num_pairs];
+        for(int i = 0; i < num_pairs; i++)
+            this->element_value_pairs[i].init(bfr);
+
+    }
+
+    ~type_annotation(void) {
+        if(this->target_type == 0x40 || this->target_type == 0x41)
+            delete[] this->target_info.localvar_target.table;
+
+        delete[] this->target_path.path;
     }
 
 };
@@ -873,9 +1029,16 @@ struct RuntimeVisibleTypeAnnotations_attribute : public attribute_info {
     RuntimeVisibleTypeAnnotations_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
             : attribute_info(attribute_name_index, attribute_length) {
 
-        this->num_annotations = bfr.read_u16();
-        this->annotations = new type_annotation[this->num_annotations];
+        uint16_t num_annots = bfr.read_u16();
+        this->num_annotations = num_annots;
+        this->annotations = new type_annotation[num_annots];
+        
+        for(int i = 0; i < num_annots; i++)
+            annotations[i].init(bfr);
+    }
 
+    ~RuntimeVisibleTypeAnnotations_attribute(void) {
+        delete[] this->annotations;
     }
 
 };
@@ -884,54 +1047,202 @@ struct RuntimeVisibleTypeAnnotations_attribute : public attribute_info {
 // RuntimeInvisibleTypeAnnotations
 // ============================================================================
 
+struct RuntimeInvisibleTypeAnnotations_attribute : public attribute_info {
+
+    uint16_t num_annotations;
+    type_annotation* annotations;
+
+    RuntimeInvisibleTypeAnnotations_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
+            : attribute_info(attribute_name_index, attribute_length) {
+
+        uint16_t num_annots = bfr.read_u16();
+        this->num_annotations = num_annots;
+        this->annotations = new type_annotation[num_annots];
+        
+        for(int i = 0; i < num_annots; i++)
+            annotations[i].init(bfr);
+    }
+
+    ~RuntimeInvisibleTypeAnnotations_attribute(void) {
+        delete[] this->annotations;
+    }
+
+};
+
 // ============================================================================
 // AnnotationDefault
 // ============================================================================
+
+struct AnnotationDefault_attribute : public attribute_info {
+
+    element_value default_value;
+
+    AnnotationDefault_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
+            : attribute_info(attribute_name_index, attribute_length) {
+
+        this->default_value.init(bfr);
+
+    }
+
+};
 
 // ============================================================================
 // BootstrapMethods
 // ============================================================================
 
+
+struct BootstrapMethods_attribute : public attribute_info {
+
+    uint16_t num_bootstrap_methods;
+
+    struct bootstrap_methods_entry {
+        uint16_t bootstrap_method_ref;
+        uint16_t num_bootstrap_arguments;
+        uint16_t* bootstrap_arguments;
+
+        void init(BinaryFileReader& bfr) {
+            this->bootstrap_method_ref = bfr.read_u16();
+            uint16_t num = bfr.read_u16();
+            
+            this->num_bootstrap_arguments = num;
+            this->bootstrap_arguments = new uint16_t[num];
+
+            for(int i = 0; i < num; i++)
+                this->bootstrap_arguments[i] = bfr.read_u16();
+        }
+
+        ~bootstrap_methods_entry(void) {
+            delete[] this->bootstrap_arguments;
+        }
+
+    };
+
+    bootstrap_methods_entry* bootstrap_methods;
+
+    BootstrapMethods_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
+            : attribute_info(attribute_name_index, attribute_length) {
+
+        uint16_t num = bfr.read_u16();
+
+        this->num_bootstrap_methods = num;
+        this->bootstrap_methods = new bootstrap_methods_entry[num];
+
+        for(int i = 0; i < num; i++) {
+            this->bootstrap_methods[i].init(bfr);
+        }
+    }
+
+};
+
 // ============================================================================
 // MethodParameters
 // ============================================================================
 
+struct MethodParameters_attribute : public attribute_info {
 
+    uint8_t parameters_count;
 
+    struct parameters_entry {
+        uint16_t name_index;
+        uint16_t access_flags;
+    };
 
+    parameters_entry* parameters;
 
+    MethodParameters_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
+            : attribute_info(attribute_name_index, attribute_length) {
 
+        uint8_t count = bfr.read_u8();
 
+        this->parameters_count = count;
+        this->parameters = new parameters_entry[count];
 
+        for(int i = 0; i < count; i++) {
+            this->parameters[i].name_index   = bfr.read_u16();
+            this->parameters[i].access_flags = bfr.read_u16();
+        }
 
+    }
 
-
-
-
-
-
-
-
-
-
-
+};
 
 // convenience function definition
-void place_attribute_info(BinaryFileReader& bfr, attribute_info*& ptr_ref) {
-    uint16_t tmp_name_index = bfr.read_u16();
-    uint32_t tmp_length = bfr.read_u32();
-
-    auto str = ::string_of(tmp_name_index);
+std::string place_attribute_info(BinaryFileReader& bfr, attribute_info*& ptr_ref) {
+    uint16_t attribute_name_index = bfr.read_u16();
+    uint32_t attribute_length = bfr.read_u32();
+    auto str = ::string_of(attribute_name_index);
 
     if(str == "ConstantValue") {
-        ptr_ref = new ConstantValue_attribute(bfr, tmp_name_index, tmp_length);
+        ptr_ref = new ConstantValue_attribute(bfr, attribute_name_index, attribute_length);
     }
     else if(str == "Code") {
-        ptr_ref = new Code_attribute(bfr, tmp_name_index, tmp_length);
+        ptr_ref = new Code_attribute(bfr, attribute_name_index, attribute_length);
+    }   
+    else if(str == "StackMapTable") {
+        ptr_ref = new StackMapTable_attribute(bfr, attribute_name_index, attribute_length);
+    }
+    else if(str == "Exceptions") {
+        ptr_ref = new Exceptions_attribute(bfr, attribute_name_index, attribute_length);
+    }
+    else if(str == "InnerClasses") {
+        ptr_ref = new InnerClasses_attribute(bfr, attribute_name_index, attribute_length);
+    }
+    else if(str == "EnclosingMethod") {
+        ptr_ref = new EnclosingMethod_attribute(bfr, attribute_name_index, attribute_length);
+    }
+    else if(str == "Synthetic") {
+        ptr_ref = new Synthetic_attribute(bfr, attribute_name_index, attribute_length);
+    }
+    else if(str == "SourceFile") {
+        ptr_ref = new SourceFile_attribute(bfr, attribute_name_index, attribute_length);
+    }
+    else if(str == "SourceDebugExtension") {
+        ptr_ref = new SourceDebugExtension_attribute(bfr, attribute_name_index, attribute_length);
+    }
+    else if(str == "LineNumberTable") {
+        ptr_ref = new LineNumberTable_attribute(bfr, attribute_name_index, attribute_length);
+    }
+    else if(str == "LocalVariableTable") {
+        ptr_ref = new LocalVariableTable_attribute(bfr, attribute_name_index, attribute_length);
+    }
+    else if(str == "LocalVariableTypeTable") {
+        ptr_ref = new LocalVariableTypeTable_attribute(bfr, attribute_name_index, attribute_length);
+    }
+    else if(str == "Deprecated") {
+        ptr_ref = new Deprecated_attribute(bfr, attribute_name_index, attribute_length);
+    }
+    else if(str == "RuntimeVisibleAnnotations") {
+        ptr_ref = new RuntimeVisibleAnnotations_attribute(bfr, attribute_name_index, attribute_length);
+    }
+    else if(str == "RuntimeInvisibleAnnotations") {
+        ptr_ref = new RuntimeInvisibleAnnotations_attribute(bfr, attribute_name_index, attribute_length);
+    }
+    else if(str == "RuntimeVisibleParameterAnnotations") {
+        ptr_ref = new RuntimeVisibleParameterAnnotations_attribute(bfr, attribute_name_index, attribute_length);
+    }
+    else if(str == "RuntimeInvisibleParameterAnnotations") {
+        ptr_ref = new RuntimeInvisibleParameterAnnotations_attribute(bfr, attribute_name_index, attribute_length);
+    }
+    else if(str == "RuntimeVisibleTypeAnnotations") {
+        ptr_ref = new RuntimeVisibleTypeAnnotations_attribute(bfr, attribute_name_index, attribute_length);
+    }
+    else if(str == "RuntimeInvisibleTypeAnnotations") {
+        ptr_ref = new RuntimeInvisibleTypeAnnotations_attribute(bfr, attribute_name_index, attribute_length);
+    }
+    else if(str == "AnnotationDefault") {
+        ptr_ref = new AnnotationDefault_attribute(bfr, attribute_name_index, attribute_length);
+    }
+    else if(str == "BootstrapMethods") {
+        ptr_ref = new BootstrapMethods_attribute(bfr, attribute_name_index, attribute_length);
+    }
+    else if(str == "MethodParameters") {
+        ptr_ref = new MethodParameters_attribute(bfr, attribute_name_index, attribute_length);
     }
     else {
-        throw std::runtime_error("error placing attribute info: unknown string constant: " + str);
+        throw std::runtime_error("Unknown attribute string value: " + str);
     }
+
+    return str;
 
 }
 

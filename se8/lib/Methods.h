@@ -1,20 +1,17 @@
 #pragma once
 
-#include <iostream>
-#include "ConstantPool.h"
-#include "Attributes.h"
-#include "Enums.h"
 #include "BinaryFileReader.h"
+#include "Attributes.h"
 
-struct field_info {
-    
+struct method_info {
+
     uint16_t access_flags;
     uint16_t name_index;
     uint16_t descriptor_index;
     uint16_t attributes_count;
     attribute_info** attributes;
 
-    field_info(void) = default;
+    method_info(void) = default;
 
     void init(BinaryFileReader& bfr) {
         this->access_flags     = bfr.read_u16();
@@ -104,7 +101,7 @@ struct field_info {
 
     }
 
-    ~field_info(void) {
+    ~method_info(void) {
         // delete data associated with every pointer first
         for(int i = 0; i < this->attributes_count; i++)
             delete this->attributes[i];

@@ -12,6 +12,6 @@ int main(int argc, char* argv[]) {
 
     ClassFile cf;
     cf.load_file(argv[1]);
-    cout << cf << endl;
+    //cout << cf << endl;
 
 }
