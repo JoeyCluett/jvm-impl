@@ -5,12 +5,15 @@
 
 struct attribute_info {
 
+    cp_info** cp_ptr;
+
     uint16_t attribute_name_index;
     uint32_t attribute_length;
 
-    attribute_info(uint16_t index, uint32_t len) {
+    attribute_info(uint16_t index, uint32_t len, cp_info** cp_ptr) {
         this->attribute_name_index = index;
         this->attribute_length = len;
+        this->cp_ptr = cp_ptr;
     }
 
     // purely virtual destructor
@@ -19,7 +22,8 @@ struct attribute_info {
 };
 
 // convenience function
-std::string place_attribute_info(BinaryFileReader& bfr, attribute_info*&);
+//std::string place_attribute_info(BinaryFileReader& bfr, attribute_info*&);
+std::string place_attribute_info(BinaryFileReader& bfr, attribute_info*& ptr_ref, cp_info** cp);
 
 // ============================================================================
 // ConstantValue
@@ -29,8 +33,10 @@ struct ConstantValue_attribute : public attribute_info {
     
     uint16_t constantvalue_index;
 
-    ConstantValue_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length) 
-            : attribute_info(attribute_name_index, attribute_length) {
+    ConstantValue_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr) 
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         this->constantvalue_index = bfr.read_u16();
     }
@@ -59,8 +65,10 @@ struct Code_attribute : public attribute_info {
     uint16_t attributes_count;
     attribute_info** attributes;
 
-    Code_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length) 
-            : attribute_info(attribute_name_index, attribute_length) {
+    Code_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr) 
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
     
         this->max_stack = bfr.read_u16();
         this->max_locals = bfr.read_u16();
@@ -83,7 +91,7 @@ struct Code_attribute : public attribute_info {
         this->attributes = new attribute_info*[attributes_count];
 
         for(int i = 0; i < this->attributes_count; i++)
-            ::place_attribute_info(bfr, this->attributes[i]);
+            ::place_attribute_info(bfr, this->attributes[i], cp_ptr);
 
     }
 
@@ -241,9 +249,10 @@ struct StackMapTable_attribute : public attribute_info {
     uint16_t number_of_entries;
     stack_map_frame* entries;
 
-
-    StackMapTable_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length) 
-            : attribute_info(attribute_name_index, attribute_length) {
+    StackMapTable_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr) 
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         this->number_of_entries = bfr.read_u16();
         this->entries = new stack_map_frame[this->number_of_entries];
@@ -268,8 +277,10 @@ struct Exceptions_attribute : public attribute_info {
     uint16_t number_of_exceptions;
     uint16_t* exception_index_table;
 
-    Exceptions_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
-            : attribute_info(attribute_name_index, attribute_length) {
+    Exceptions_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr)
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         this->number_of_exceptions = bfr.read_u16();
         this->exception_index_table = new uint16_t[this->number_of_exceptions];
@@ -308,8 +319,10 @@ struct InnerClasses_attribute : public attribute_info {
     uint16_t number_of_classes;
     inner_class_info* classes;
 
-    InnerClasses_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
-            : attribute_info(attribute_name_index, attribute_length) {
+    InnerClasses_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr)
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         this->number_of_classes = bfr.read_u16();
         this->classes = new inner_class_info[this->number_of_classes];
@@ -329,8 +342,10 @@ struct EnclosingMethod_attribute : public attribute_info {
     uint16_t class_index;
     uint16_t method_index;
 
-    EnclosingMethod_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
-            : attribute_info(attribute_name_index, attribute_length) {
+    EnclosingMethod_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr)
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         this->class_index = bfr.read_u16();
         this->method_index = bfr.read_u16();
@@ -345,8 +360,10 @@ struct EnclosingMethod_attribute : public attribute_info {
 
 struct Synthetic_attribute : public attribute_info {
 
-    Synthetic_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
-            : attribute_info(attribute_name_index, attribute_length) {
+    Synthetic_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr)
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
     
         // check the attribute length real quick here
         if(attribute_length != 0)
@@ -364,8 +381,10 @@ struct Signature_attribute : public attribute_info {
 
     uint16_t signature_index;
 
-    Signature_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
-            : attribute_info(attribute_name_index, attribute_length) {
+    Signature_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr)
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         this->signature_index = bfr.read_u16();
 
@@ -381,8 +400,10 @@ struct SourceFile_attribute : public attribute_info {
 
     uint16_t sourcefile_index;
 
-    SourceFile_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
-            : attribute_info(attribute_name_index, attribute_length) {
+    SourceFile_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr)
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         this->sourcefile_index = bfr.read_u16();
 
@@ -398,8 +419,10 @@ struct SourceDebugExtension_attribute : public attribute_info {
 
     uint8_t* debug_extension;
 
-    SourceDebugExtension_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
-            : attribute_info(attribute_name_index, attribute_length) {
+    SourceDebugExtension_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr)
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         this->debug_extension = new uint8_t[attribute_length];
         bfr.read_buffer(reinterpret_cast<char*>(this->debug_extension), attribute_length);
@@ -432,8 +455,10 @@ struct LineNumberTable_attribute : public attribute_info {
     uint16_t line_number_table_length;
     line_number_table_entry* line_number_table;
 
-    LineNumberTable_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
-            : attribute_info(attribute_name_index, attribute_length) {
+    LineNumberTable_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr)
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         this->line_number_table_length = bfr.read_u16();
         this->line_number_table = new line_number_table_entry[this->line_number_table_length];
@@ -475,8 +500,10 @@ struct LocalVariableTable_attribute : public attribute_info {
     uint16_t local_variable_table_length;
     local_variable_table_entry* local_variable_table;
 
-    LocalVariableTable_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
-            : attribute_info(attribute_name_index, attribute_length) {
+    LocalVariableTable_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr)
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         this->local_variable_table_length = bfr.read_u16();
         this->local_variable_table = new local_variable_table_entry[this->local_variable_table_length];
@@ -518,8 +545,10 @@ struct LocalVariableTypeTable_attribute : public attribute_info {
     uint16_t local_variable_type_table_length;
     local_variable_type_table_entry* local_variable_type_table;
 
-    LocalVariableTypeTable_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
-            : attribute_info(attribute_name_index, attribute_length) {
+    LocalVariableTypeTable_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr)
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         this->local_variable_type_table_length = bfr.read_u16();
         this->local_variable_type_table = new local_variable_type_table_entry[this->local_variable_type_table_length];
@@ -540,8 +569,10 @@ struct LocalVariableTypeTable_attribute : public attribute_info {
 
 struct Deprecated_attribute : public attribute_info {
 
-    Deprecated_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
-            : attribute_info(attribute_name_index, attribute_length) {
+    Deprecated_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr)
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         // check the attribute length real quick here
         if(attribute_length != 0)
@@ -676,8 +707,10 @@ struct RuntimeVisibleAnnotations_attribute : public attribute_info {
     uint16_t num_annotations;
     annotation* annotations;
 
-    RuntimeVisibleAnnotations_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
-            : attribute_info(attribute_name_index, attribute_length) {
+    RuntimeVisibleAnnotations_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr)
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         this->num_annotations = bfr.read_u16();
         this->annotations = new annotation[this->num_annotations];
@@ -700,8 +733,10 @@ struct RuntimeInvisibleAnnotations_attribute : public attribute_info {
     uint16_t num_annotations;
     annotation* annotations;
 
-    RuntimeInvisibleAnnotations_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
-            : attribute_info(attribute_name_index, attribute_length) {
+    RuntimeInvisibleAnnotations_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr)
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         this->num_annotations = bfr.read_u16();
         this->annotations = new annotation[this->num_annotations];
@@ -742,8 +777,10 @@ struct RuntimeVisibleParameterAnnotations_attribute : public attribute_info {
     uint16_t num_parameters;
     paramater_annotation_entry* parameter_annotations;
 
-    RuntimeVisibleParameterAnnotations_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
-            : attribute_info(attribute_name_index, attribute_length) {
+    RuntimeVisibleParameterAnnotations_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr)
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         this->num_parameters = bfr.read_u16();
         this->parameter_annotations = new paramater_annotation_entry[this->num_parameters];
@@ -767,8 +804,10 @@ struct RuntimeInvisibleParameterAnnotations_attribute : public attribute_info {
     uint16_t num_parameters;
     paramater_annotation_entry* parameter_annotations;
 
-    RuntimeInvisibleParameterAnnotations_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
-            : attribute_info(attribute_name_index, attribute_length) {
+    RuntimeInvisibleParameterAnnotations_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr)
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         this->num_parameters = bfr.read_u16();
         this->parameter_annotations = new paramater_annotation_entry[this->num_parameters];
@@ -1026,8 +1065,10 @@ struct RuntimeVisibleTypeAnnotations_attribute : public attribute_info {
     uint16_t num_annotations;
     type_annotation* annotations;
 
-    RuntimeVisibleTypeAnnotations_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
-            : attribute_info(attribute_name_index, attribute_length) {
+    RuntimeVisibleTypeAnnotations_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr)
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         uint16_t num_annots = bfr.read_u16();
         this->num_annotations = num_annots;
@@ -1052,8 +1093,10 @@ struct RuntimeInvisibleTypeAnnotations_attribute : public attribute_info {
     uint16_t num_annotations;
     type_annotation* annotations;
 
-    RuntimeInvisibleTypeAnnotations_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
-            : attribute_info(attribute_name_index, attribute_length) {
+    RuntimeInvisibleTypeAnnotations_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr)
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         uint16_t num_annots = bfr.read_u16();
         this->num_annotations = num_annots;
@@ -1077,8 +1120,10 @@ struct AnnotationDefault_attribute : public attribute_info {
 
     element_value default_value;
 
-    AnnotationDefault_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
-            : attribute_info(attribute_name_index, attribute_length) {
+    AnnotationDefault_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr)
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         this->default_value.init(bfr);
 
@@ -1119,8 +1164,10 @@ struct BootstrapMethods_attribute : public attribute_info {
 
     bootstrap_methods_entry* bootstrap_methods;
 
-    BootstrapMethods_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
-            : attribute_info(attribute_name_index, attribute_length) {
+    BootstrapMethods_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr)
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         uint16_t num = bfr.read_u16();
 
@@ -1149,8 +1196,10 @@ struct MethodParameters_attribute : public attribute_info {
 
     parameters_entry* parameters;
 
-    MethodParameters_attribute(BinaryFileReader& bfr, uint16_t attribute_name_index, uint32_t attribute_length)
-            : attribute_info(attribute_name_index, attribute_length) {
+    MethodParameters_attribute(
+                BinaryFileReader& bfr, uint16_t attribute_name_index, 
+                uint32_t attribute_length, cp_info** cp_ptr)
+            : attribute_info(attribute_name_index, attribute_length, cp_ptr) {
 
         uint8_t count = bfr.read_u8();
 
@@ -1167,82 +1216,107 @@ struct MethodParameters_attribute : public attribute_info {
 };
 
 // convenience function definition
-std::string place_attribute_info(BinaryFileReader& bfr, attribute_info*& ptr_ref) {
+std::string place_attribute_info(BinaryFileReader& bfr, attribute_info*& ptr_ref, cp_info** cp) {
     uint16_t attribute_name_index = bfr.read_u16();
     uint32_t attribute_length = bfr.read_u32();
-    auto str = ::string_of(attribute_name_index);
+    auto str = ::string_of(attribute_name_index, cp);
 
     if(str == "ConstantValue") {
-        ptr_ref = new ConstantValue_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new ConstantValue_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else if(str == "Code") {
-        ptr_ref = new Code_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new Code_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }   
     else if(str == "StackMapTable") {
-        ptr_ref = new StackMapTable_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new StackMapTable_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else if(str == "Exceptions") {
-        ptr_ref = new Exceptions_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new Exceptions_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else if(str == "InnerClasses") {
-        ptr_ref = new InnerClasses_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new InnerClasses_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else if(str == "EnclosingMethod") {
-        ptr_ref = new EnclosingMethod_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new EnclosingMethod_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else if(str == "Synthetic") {
-        ptr_ref = new Synthetic_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new Synthetic_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
+    }
+    else if(str == "Signature") {
+        ptr_ref = new Signature_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else if(str == "SourceFile") {
-        ptr_ref = new SourceFile_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new SourceFile_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else if(str == "SourceDebugExtension") {
-        ptr_ref = new SourceDebugExtension_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new SourceDebugExtension_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else if(str == "LineNumberTable") {
-        ptr_ref = new LineNumberTable_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new LineNumberTable_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else if(str == "LocalVariableTable") {
-        ptr_ref = new LocalVariableTable_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new LocalVariableTable_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else if(str == "LocalVariableTypeTable") {
-        ptr_ref = new LocalVariableTypeTable_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new LocalVariableTypeTable_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else if(str == "Deprecated") {
-        ptr_ref = new Deprecated_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new Deprecated_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else if(str == "RuntimeVisibleAnnotations") {
-        ptr_ref = new RuntimeVisibleAnnotations_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new RuntimeVisibleAnnotations_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else if(str == "RuntimeInvisibleAnnotations") {
-        ptr_ref = new RuntimeInvisibleAnnotations_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new RuntimeInvisibleAnnotations_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else if(str == "RuntimeVisibleParameterAnnotations") {
-        ptr_ref = new RuntimeVisibleParameterAnnotations_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new RuntimeVisibleParameterAnnotations_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else if(str == "RuntimeInvisibleParameterAnnotations") {
-        ptr_ref = new RuntimeInvisibleParameterAnnotations_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new RuntimeInvisibleParameterAnnotations_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else if(str == "RuntimeVisibleTypeAnnotations") {
-        ptr_ref = new RuntimeVisibleTypeAnnotations_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new RuntimeVisibleTypeAnnotations_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else if(str == "RuntimeInvisibleTypeAnnotations") {
-        ptr_ref = new RuntimeInvisibleTypeAnnotations_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new RuntimeInvisibleTypeAnnotations_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else if(str == "AnnotationDefault") {
-        ptr_ref = new AnnotationDefault_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new AnnotationDefault_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else if(str == "BootstrapMethods") {
-        ptr_ref = new BootstrapMethods_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new BootstrapMethods_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else if(str == "MethodParameters") {
-        ptr_ref = new MethodParameters_attribute(bfr, attribute_name_index, attribute_length);
+        ptr_ref = new MethodParameters_attribute(
+            bfr, attribute_name_index, attribute_length, cp);
     }
     else {
         throw std::runtime_error("Unknown attribute string value: " + str);
     }
 
     return str;
-
 }
 

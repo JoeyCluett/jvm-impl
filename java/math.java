@@ -16,6 +16,7 @@ public class math {
     public float subtract() { return a - b; }
 
     public static final float pi = 3.14159265f;
+    public static final double staticlong = 123456789L;
 
     public math() {
         this.a = 3.141592654f;

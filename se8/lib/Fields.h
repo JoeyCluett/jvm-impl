@@ -16,7 +16,7 @@ struct field_info {
 
     field_info(void) = default;
 
-    void init(BinaryFileReader& bfr) {
+    void init(BinaryFileReader& bfr, cp_info** cp) {
         this->access_flags     = bfr.read_u16();
         this->name_index       = bfr.read_u16();
         this->descriptor_index = bfr.read_u16();
@@ -24,11 +24,14 @@ struct field_info {
         this->attributes = new attribute_info*[this->attributes_count];
 
         for(int i = 0; i < this->attributes_count; i++) {
+
+            ::place_attribute_info(bfr, attributes[i], cp);
+
+        /*
             uint16_t attribute_name_index = bfr.read_u16();
             uint32_t attribute_length = bfr.read_u32();
         
-            auto str = ::string_of(attribute_name_index);
-
+            auto str = ::string_of(attribute_name_index, cp);
 
             if(str == "ConstantValue") {
                 this->attributes[i] = new ConstantValue_attribute(bfr, attribute_name_index, attribute_length);
@@ -99,7 +102,7 @@ struct field_info {
             else {
                 throw std::runtime_error("Unknown attribute string value: " + str);
             }
-
+        */
         }
 
     }

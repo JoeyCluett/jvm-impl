@@ -19,6 +19,7 @@ auto pad_right(std::string str, int len) -> std::string {
 #define PR_SPC 20
 
 struct cp_info {
+    cp_info** cp_ptr;
     CONSTANT tag;
 
     cp_info(void) { }
@@ -26,10 +27,10 @@ struct cp_info {
 
 };
 
-cp_info** global_constant_pool = NULL;
+//cp_info** global_constant_pool = NULL;
 
 // helper function to get strings
-std::string string_of(int index);
+std::string string_of(int index, cp_info** cp);
 
 struct CONSTANT_Class_info : public cp_info {
 
@@ -44,7 +45,7 @@ struct CONSTANT_Class_info : public cp_info {
 
         os << pad_right("Class", PR_SPC);
         os << pad_right("#" + std::to_string(cinfo.name_index), 12) << "// ";
-        os << ::string_of(cinfo.name_index) << std::endl << std::flush;
+        os << ::string_of(cinfo.name_index, cinfo.cp_ptr) << std::endl << std::flush;
 
         return os;
     }
@@ -70,7 +71,9 @@ struct CONSTANT_Fieldref_info : public cp_info {
                 std::to_string(cinfo.class_index) + 
                 ".#" + 
                 std::to_string(cinfo.name_and_type_index), 12) << std::flush;
-        os << "// " << ::string_of(cinfo.class_index) << '.' << ::string_of(cinfo.name_and_type_index) << "\n" << std::flush;
+        os << "// " 
+            << ::string_of(cinfo.class_index, cinfo.cp_ptr) << '.' 
+            << ::string_of(cinfo.name_and_type_index, cinfo.cp_ptr) << "\n" << std::flush;
 
 
         return os;
@@ -97,7 +100,9 @@ struct CONSTANT_Methodref_info : public cp_info {
                 std::to_string(cinfo.class_index) + 
                 ".#" + 
                 std::to_string(cinfo.name_and_type_index), 12) << std::flush;
-        os << "// " << ::string_of(cinfo.class_index) << '.' << ::string_of(cinfo.name_and_type_index) << "\n" << std::flush;
+        os << "// " 
+            << ::string_of(cinfo.class_index, cinfo.cp_ptr) << '.' 
+            << ::string_of(cinfo.name_and_type_index, cinfo.cp_ptr) << "\n" << std::flush;
 
         return os;
     }
@@ -126,8 +131,9 @@ struct CONSTANT_InterfaceMethodref_info : public cp_info {
                 std::to_string(cinfo.class_index) + 
                 ".#" + 
                 std::to_string(cinfo.name_and_type_index), 12) << std::flush;
-        os << "// " << ::string_of(cinfo.class_index) << '.' << ::string_of(cinfo.name_and_type_index) << "\n" << std::flush;
-
+        os << "// " 
+            << ::string_of(cinfo.class_index, cinfo.cp_ptr) << '.' 
+            << ::string_of(cinfo.name_and_type_index, cinfo.cp_ptr) << "\n" << std::flush;
 
         return os;
     }
@@ -148,7 +154,7 @@ struct CONSTANT_String_info : public cp_info {
         os << pad_right("String", PR_SPC);
         os 
             << pad_right("#" + std::to_string(cinfo.string_index), 12) 
-            << "// \"" << ::string_of(cinfo.string_index) << "\"\n" << std::flush;
+            << "// \"" << ::string_of(cinfo.string_index, cinfo.cp_ptr) << "\"\n" << std::flush;
 
         return os;
     }
@@ -265,7 +271,9 @@ struct CONSTANT_NameAndType_info : public cp_info {
                 std::to_string(cinfo.name_index) + 
                 ":#" + 
                 std::to_string(cinfo.descriptor_index), 12) << std::flush;
-        os << "// " << ::string_of(cinfo.name_index) << ':' << ::string_of(cinfo.descriptor_index) << "\n" << std::flush;
+        os << "// " 
+            << ::string_of(cinfo.name_index, cinfo.cp_ptr) << ':' 
+            << ::string_of(cinfo.descriptor_index, cinfo.cp_ptr) << "\n" << std::flush;
 
         return os;
     }
@@ -320,7 +328,9 @@ struct CONSTANT_MethodHandle_info : public cp_info {
             << pad_right(
                 "#" + std::to_string(cinfo.reference_kind) + 
                 ".#" + std::to_string(cinfo.reference_index), 12) 
-            << "// " <<  pad_right(REF_flag_string(static_cast<REF>(cinfo.reference_kind)), 19) << "   " << ::string_of(cinfo.reference_index) << "\n" << std::flush;
+            << "// " 
+                <<  pad_right(REF_flag_string(static_cast<REF>(cinfo.reference_kind)), 19) << "   " 
+                << ::string_of(cinfo.reference_index, cinfo.cp_ptr) << "\n" << std::flush;
 
         return os;
     }
@@ -341,7 +351,7 @@ struct CONSTANT_MethodType_info : public cp_info {
         os 
             << pad_right("MethodType", PR_SPC) 
             << pad_right("#" + std::to_string(cinfo.descriptor_index), 12) 
-            << ::string_of(cinfo.descriptor_index) << "\n" << std::flush;
+            << ::string_of(cinfo.descriptor_index, cinfo.cp_ptr) << "\n" << std::flush;
 
         return os;
     }
@@ -370,15 +380,16 @@ struct CONSTANT_InvokeDynamic_info : public cp_info {
 
         os 
             << "// <bootstrap_method_array_index>." 
-            << ::string_of(cinfo.name_and_type_index) << '\n' << std::flush;
+            << ::string_of(cinfo.name_and_type_index, cinfo.cp_ptr) << '\n' << std::flush;
 
         return os;
     }
 
 };
 
-std::string string_of(int index) {
-    cp_info* tmp = global_constant_pool[index-1];
+std::string string_of(int index, cp_info** cp) {
+    //cp_info* tmp = global_constant_pool[index-1];
+    cp_info* tmp = cp[index-1];
 
     switch(tmp->tag) {
         case CONSTANT::Utf8:
@@ -398,47 +409,47 @@ std::string string_of(int index) {
             break;
         case CONSTANT::Class:
             // recursive function calls ftw
-            return ::string_of(static_cast<CONSTANT_Class_info*>(tmp)->name_index);
+            return ::string_of(static_cast<CONSTANT_Class_info*>(tmp)->name_index, cp);
             break;
         case CONSTANT::String:
-            return ::string_of(static_cast<CONSTANT_String_info*>(tmp)->string_index);
+            return ::string_of(static_cast<CONSTANT_String_info*>(tmp)->string_index, cp);
             break;
         case CONSTANT::FieldRef:
             return 
-                (::string_of(static_cast<CONSTANT_Fieldref_info*>(tmp)->class_index)
+                (::string_of(static_cast<CONSTANT_Fieldref_info*>(tmp)->class_index, cp)
                 + "."
-                + ::string_of(static_cast<CONSTANT_Fieldref_info*>(tmp)->name_and_type_index));
+                + ::string_of(static_cast<CONSTANT_Fieldref_info*>(tmp)->name_and_type_index, cp));
             break;
         case CONSTANT::MethodRef:
             return 
-                (::string_of(static_cast<CONSTANT_Methodref_info*>(tmp)->class_index)
+                (::string_of(static_cast<CONSTANT_Methodref_info*>(tmp)->class_index, cp)
                 + "."
-                + ::string_of(static_cast<CONSTANT_Methodref_info*>(tmp)->name_and_type_index));
+                + ::string_of(static_cast<CONSTANT_Methodref_info*>(tmp)->name_and_type_index, cp));
             break;
         case CONSTANT::InterfaceMethodRef:
             return 
-                (::string_of(static_cast<CONSTANT_InterfaceMethodref_info*>(tmp)->class_index)
+                (::string_of(static_cast<CONSTANT_InterfaceMethodref_info*>(tmp)->class_index, cp)
                 + "."
-                + ::string_of(static_cast<CONSTANT_InterfaceMethodref_info*>(tmp)->name_and_type_index));
+                + ::string_of(static_cast<CONSTANT_InterfaceMethodref_info*>(tmp)->name_and_type_index, cp));
             break;
         case CONSTANT::NameAndType:
             return 
-                (::string_of(static_cast<CONSTANT_NameAndType_info*>(tmp)->name_index)
+                (::string_of(static_cast<CONSTANT_NameAndType_info*>(tmp)->name_index, cp)
                 + ":"
-                + ::string_of(static_cast<CONSTANT_NameAndType_info*>(tmp)->descriptor_index));
+                + ::string_of(static_cast<CONSTANT_NameAndType_info*>(tmp)->descriptor_index, cp));
             break;
         case CONSTANT::MethodHandle:
             return 
                 (pad_right(REF_flag_string(static_cast<REF>(static_cast<CONSTANT_MethodHandle_info*>(tmp)->reference_kind)), 19) 
-                + "   " + ::string_of(static_cast<CONSTANT_MethodHandle_info*>(tmp)->reference_index));
+                + "   " + ::string_of(static_cast<CONSTANT_MethodHandle_info*>(tmp)->reference_index, cp));
             break;
         case CONSTANT::MethodType:
-            return ::string_of(static_cast<CONSTANT_MethodType_info*>(tmp)->descriptor_index);
+            return ::string_of(static_cast<CONSTANT_MethodType_info*>(tmp)->descriptor_index, cp);
             break;
         case CONSTANT::InvokeDynamic:
             return 
                 ("<bootstrap_method_array_index>." 
-                + ::string_of(static_cast<CONSTANT_InvokeDynamic_info*>(tmp)->name_and_type_index));
+                + ::string_of(static_cast<CONSTANT_InvokeDynamic_info*>(tmp)->name_and_type_index, cp));
             break;
         default:
             throw std::runtime_error("Unknown tag in string_of " + std::to_string(static_cast<int>(tmp->tag)));

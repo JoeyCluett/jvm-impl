@@ -3,6 +3,22 @@
 // every constant field entry needs one of these
 enum class CONSTANT : uint8_t {
 
+    Class	           = 7,
+    FieldRef	       = 9,
+    MethodRef	       = 10,
+    InterfaceMethodRef = 11,
+    String             = 8,
+    Integer            = 3,
+    Float	           = 4,
+    Long	           = 5,
+    Double	           = 6,
+    NameAndType	       = 12,
+    Utf8	           = 1,
+    MethodHandle	   = 15,
+    MethodType	       = 16,
+    InvokeDynamic	   = 18   
+
+/*
     Utf8               = 1,
     Integer            = 3,
     Float              = 4,
@@ -17,7 +33,7 @@ enum class CONSTANT : uint8_t {
     MethodHandle       = 15,
     MethodType         = 16,
     InvokeDynamic      = 18
-
+*/
 };
 
 // class file access flags

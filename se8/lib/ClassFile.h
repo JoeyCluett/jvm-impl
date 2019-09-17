@@ -34,6 +34,9 @@ private:
     attribute_info** attributes;
 
     void load_preface(void) {
+
+        std::cout << "Loading preface..." << std::flush;
+
         this->magic = this->bfr.read_u32();
 
         if(this->magic != 0xCAFEBABE) {
@@ -42,39 +45,101 @@ private:
 
         this->minor_version = this->bfr.read_u16();
         this->major_version = this->bfr.read_u16();
+
+        std::cout << "DONE\n" << std::flush;
+
     }
 
     void load_constant_pool(void) {
+        std::cout << "Loading constant pool..." << std::flush;
+
         constant_pool_count = this->bfr.read_u16();
     
         // allocate pointers for each constant
+        // after this allocation, this never changes 
+        // for the life of the class file
         this->constant_pool = new cp_info*[this->constant_pool_count-1];
 
-        for(int i = 0; i < constant_pool_count-1; i++) {
+        for(int i = 0; i < constant_pool_count-1;) {
 
             //std::cout << "#" << i+1 << std::endl << std::flush;
 
-            CONSTANT c = static_cast<CONSTANT>(this->bfr.read_u8());
+            uint8_t tag = this->bfr.read_u8();
+            //std::cout << "  Constant: " << static_cast<int>(tag) << std::endl << std::flush;
+            CONSTANT c = static_cast<CONSTANT>(tag);
+
             switch(c) {
-                case CONSTANT::Utf8:                this->constant_pool[i] = new CONSTANT_Utf8_info(this->bfr); break;
-                case CONSTANT::Integer:             this->constant_pool[i] = new CONSTANT_Integer_info(this->bfr); break;
-                case CONSTANT::Float:               this->constant_pool[i] = new CONSTANT_Float_info(this->bfr); break;
-                case CONSTANT::Long:                this->constant_pool[i] = new CONSTANT_Long_info(this->bfr);   i++; break;
-                case CONSTANT::Double:              this->constant_pool[i] = new CONSTANT_Double_info(this->bfr); i++; break;
-                case CONSTANT::Class:               this->constant_pool[i] = new CONSTANT_Class_info(this->bfr); break;
-                case CONSTANT::String:              this->constant_pool[i] = new CONSTANT_String_info(this->bfr); break;
-                case CONSTANT::FieldRef:            this->constant_pool[i] = new CONSTANT_Fieldref_info(this->bfr); break;
-                case CONSTANT::MethodRef:           this->constant_pool[i] = new CONSTANT_Methodref_info(this->bfr); break;
-                case CONSTANT::InterfaceMethodRef:  this->constant_pool[i] = new CONSTANT_InterfaceMethodref_info(this->bfr); break;
-                case CONSTANT::NameAndType:         this->constant_pool[i] = new CONSTANT_NameAndType_info(this->bfr); break;
-                case CONSTANT::MethodHandle:        this->constant_pool[i] = new CONSTANT_MethodHandle_info(this->bfr); break;
-                case CONSTANT::MethodType:          this->constant_pool[i] = new CONSTANT_MethodType_info(this->bfr); break;
-                case CONSTANT::InvokeDynamic:       this->constant_pool[i] = new CONSTANT_InvokeDynamic_info(this->bfr); break;
+                case CONSTANT::Utf8:                
+                    this->constant_pool[i] = new CONSTANT_Utf8_info(this->bfr); 
+                    i += 1; break;
+
+                case CONSTANT::Integer:             
+                    this->constant_pool[i] = new CONSTANT_Integer_info(this->bfr); 
+                    i += 1; break;
+                
+                case CONSTANT::Float:               
+                    this->constant_pool[i] = new CONSTANT_Float_info(this->bfr); 
+                    i += 1; break;
+                
+                case CONSTANT::Long:                
+                    this->constant_pool[i]   = new CONSTANT_Long_info(this->bfr);
+                    this->constant_pool[i+1] = this->constant_pool[i];   
+                    i += 2; break;
+                
+                case CONSTANT::Double:              
+                    this->constant_pool[i]   = new CONSTANT_Double_info(this->bfr); 
+                    this->constant_pool[i+1] = this->constant_pool[i];
+                    i += 2; break;
+                
+                case CONSTANT::Class:               
+                    this->constant_pool[i] = new CONSTANT_Class_info(this->bfr); 
+                    i += 1; break;
+                
+                case CONSTANT::String:              
+                    this->constant_pool[i] = new CONSTANT_String_info(this->bfr); 
+                    i += 1; break;
+                
+                case CONSTANT::FieldRef:            
+                    this->constant_pool[i] = new CONSTANT_Fieldref_info(this->bfr); 
+                    i += 1; break;
+                
+                case CONSTANT::MethodRef:           
+                    this->constant_pool[i] = new CONSTANT_Methodref_info(this->bfr); 
+                    i += 1; break;
+                
+                case CONSTANT::InterfaceMethodRef:  
+                    this->constant_pool[i] = new CONSTANT_InterfaceMethodref_info(this->bfr); 
+                    i += 1; break;
+                
+                case CONSTANT::NameAndType:         
+                    this->constant_pool[i] = new CONSTANT_NameAndType_info(this->bfr); 
+                    i += 1; break;
+                
+                case CONSTANT::MethodHandle:        
+                    this->constant_pool[i] = new CONSTANT_MethodHandle_info(this->bfr); 
+                    i += 1; break;
+                
+                case CONSTANT::MethodType:          
+                    this->constant_pool[i] = new CONSTANT_MethodType_info(this->bfr); 
+                    i += 1; break;
+                
+                case CONSTANT::InvokeDynamic:       
+                    this->constant_pool[i] = new CONSTANT_InvokeDynamic_info(this->bfr); 
+                    i += 1; break;
+                
                 default: throw std::runtime_error("Unknown tag for constant pool entry: " 
                                         + std::to_string(static_cast<int>(c))); break;
             };
 
+            // every constant needs a reference to its pool
+            //this->constant_pool[i]->cp_ptr = this->constant_pool;
+
         }
+
+        for(int i = 0; i < constant_pool_count-1; i++)
+            this->constant_pool[i]->cp_ptr = this->constant_pool;
+
+        std::cout << "DONE\n" << std::flush;
 
     }
 
@@ -86,6 +151,9 @@ private:
     }
 
     void load_interfaces(void) {
+
+        std::cout << "Loading interfaces..." << std::flush;
+
         this->interfaces_count = this->bfr.read_u16();
         if(this->interfaces_count) {
             this->interfaces = new uint16_t[this->interfaces_count];
@@ -96,15 +164,23 @@ private:
         } else {
             this->interfaces = NULL;
         }
+
+        std::cout << "DONE\n" << std::flush;
     }
 
     void load_fields(void) {
+
+        std::cout << "Loading fields..." << std::flush;
+
         this->fields_count = this->bfr.read_u16();
+        std::cout << "(" << this->fields_count << ")" << std::flush;
+        
         this->fields = new field_info[this->fields_count];
 
         for(int i = 0; i < this->fields_count; i++)
-            this->fields[i].init(this->bfr);
+            this->fields[i].init(this->bfr, this->constant_pool);
 
+        std::cout << "DONE\n" << std::flush;
     }
 
     void load_methods(void) {
@@ -112,7 +188,7 @@ private:
         this->methods = new method_info[this->methods_count];
 
         for(int i = 0; i < this->methods_count; i++)
-            this->methods[i].init(this->bfr);
+            this->methods[i].init(this->bfr, this->constant_pool);
     }
 
     void load_attributes(void) {
@@ -120,7 +196,7 @@ private:
         this->attributes = new attribute_info*[this->attributes_count];
     
         for(int i = 0; i < this->attributes_count; i++) {
-            auto s = ::place_attribute_info(this->bfr, this->attributes[i]);
+            auto s = ::place_attribute_info(this->bfr, this->attributes[i], this->constant_pool);
         }
 
     }
@@ -157,7 +233,7 @@ private:
 
     void print_constant_pool(std::ostream& os = std::cout) {
         // copy raw pointer over
-        global_constant_pool = this->constant_pool;
+        //global_constant_pool = this->constant_pool;
 
         os << "Constant pool:\n" << std::flush;
 
@@ -252,15 +328,15 @@ private:
     }
 
     void print_this_class(std::ostream& os = std::cout) {
-        global_constant_pool = this->constant_pool;
-        os << "This class:         " << ::string_of(this->this_class) << std::endl;
+        //global_constant_pool = this->constant_pool;
+        os << "This class:         " << ::string_of(this->this_class, this->constant_pool) << std::endl;
     }
 
     void print_super_class(std::ostream& os = std::cout) {
         os << "Super class:        ";
 
         if(super_class) {
-            os << ::string_of(this->super_class) << std::endl;
+            os << ::string_of(this->super_class, this->constant_pool) << std::endl;
         }
         else {
             os << "NONE\n";
@@ -275,8 +351,8 @@ private:
         for(int i = 0; i < this->interfaces_count; i++) {
             if(this->constant_pool[this->interfaces[i]-1]->tag == CONSTANT::Class) {
                 // good to go
-                global_constant_pool = this->constant_pool;
-                os << "\n    " << ::string_of(this->interfaces[i]);
+                //global_constant_pool = this->constant_pool;
+                os << "\n    " << ::string_of(this->interfaces[i], this->constant_pool);
             }
             else {
                 throw std::runtime_error("print_interfaces : Expected constant pool entry is not CONSTANT_Class_info");
@@ -292,17 +368,17 @@ private:
         os << "Fields count:       " << this->fields_count << std::endl << std::flush;
 
         for(int i = 0; i < this->fields_count; i++) {
-            os << pad_left("#" + std::to_string(i), 7);
+            os << pad_left("#" + std::to_string(i+1), 7);
         
             os << "   Flags:      ";
             this->print_field_access_flags(this->fields[i].access_flags, os);
             
             os << "          Name:       '" 
-                << ::string_of(this->fields[i].name_index) 
+                << ::string_of(this->fields[i].name_index, this->constant_pool) 
                 << "'\n" << std::flush;
 
             os << "          Descriptor: "
-                << ::string_of(this->fields[i].descriptor_index)
+                << ::string_of(this->fields[i].descriptor_index, this->constant_pool)
                 << std::endl << std::flush;
 
             os << "          Num attributes: " << this->fields[i].attributes_count
@@ -316,17 +392,17 @@ private:
         os << "Methods count:       " << this->methods_count << std::endl << std::flush;
 
         for(int i = 0; i < this->methods_count; i++) {
-            os << pad_left("#" + std::to_string(i), 7);
+            os << pad_left("#" + std::to_string(i+1), 7);
             
             os << "   Flags:      ";
             this->print_method_access_flags(this->methods[i].access_flags, os);
             
             os << "          Name:       '" 
-                << ::string_of(this->methods[i].name_index) 
+                << ::string_of(this->methods[i].name_index, this->constant_pool) 
                 << "'\n" << std::flush;
 
             os << "          Descriptor: "
-                << ::string_of(this->methods[i].descriptor_index)
+                << ::string_of(this->methods[i].descriptor_index, this->constant_pool)
                 << std::endl << std::flush;
 
             os << "          Num attributes: " << this->methods[i].attributes_count
@@ -336,9 +412,17 @@ private:
         }
     }
 
+    void print_class_attributes(std::ostream& os = std::cout) {
+
+    }
+
 public:
 
     ClassFile(void) {}
+
+    std::string class_name(void) {
+
+    }
 
     void load_file(std::string filename) {
         this->bfr.open(filename);
