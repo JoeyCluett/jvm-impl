@@ -173,12 +173,15 @@ private:
         std::cout << "Loading fields..." << std::flush;
 
         this->fields_count = this->bfr.read_u16();
-        std::cout << "(" << this->fields_count << ")" << std::flush;
+        std::cout << "(" << this->fields_count << ")\n" << std::flush;
         
         this->fields = new field_info[this->fields_count];
 
-        for(int i = 0; i < this->fields_count; i++)
+        for(int i = 0; i < this->fields_count; i++) {
+            std::cout << '[' << i+1 << std::flush;
             this->fields[i].init(this->bfr, this->constant_pool);
+
+        }
 
         std::cout << "DONE\n" << std::flush;
     }
