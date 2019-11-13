@@ -2,6 +2,7 @@
 #include <BinaryFileReader.h>
 #include <ConstantInfo.h>
 #include <functional>
+#include <stdio.h>
 
 ClassFile::ClassFile(void) {
     ; // do nothing
@@ -33,13 +34,18 @@ void ClassFile::init(const std::string& filename) {
 
     this->load_constant_pool(bfr);
 
+    for(int i = 0; i < this->cp_info.size(); i++) {
+
+//        std::cout << this->getConstantAt(i+1) << std::endl;
+
+        auto s = this->getConstantAt(i+1);
+        printf("%-5d : %s %s\n", i, ConstantInfo::nameOfTag(std::get<0>(this->cp_info[i])).c_str(), s.c_str());
+
+    }
+
 }
 
 void ClassFile::load_constant_pool(BinaryFileReader& bfr) {
-
-    auto load_constant_into_buffer = [this](int index, std::string content) {
-
-    };
 
     std::vector<ConstantInfo> cvec;
 
@@ -116,18 +122,29 @@ void ClassFile::load_constant_pool(BinaryFileReader& bfr) {
                 case 1:  // CONSTANT_Utf8
                     {
                         return std::string(
-                            this->cp_buffer.begin()+ci.utf8_info.start,
-                            this->cp_buffer.begin()+ci.utf8_info.end);
+                            ci.utf8_info.buf,
+                            ci.utf8_info.buf + ci.utf8_info.length
+                        );
                     }
                     break;
                 case 15: // CONSTANT_MethodHandle
                     {
-                        
+                        return 
+                            std::to_string(int(ci.methodhandle_info.reference_kind)) + " " +
+                            eval_constant(ci.methodhandle_info.reference_index);
                     }
                     break;
                 case 16: // CONSTANT_MethodType
+                    {
+                        return eval_constant(ci.methodtype_info.descriptor_index);
+                    }
                     break;
                 case 18: // CONSTANT_InvokeDynamic
+                    {
+                        return 
+                            std::to_string(int(ci.invokedynamic_info.bootstrap_method_attr_index)) + " " +
+                            eval_constant(ci.invokedynamic_info.name_and_type_index);
+                    }
                     break;
                 default:
                     throw std::runtime_error(
@@ -136,10 +153,33 @@ void ClassFile::load_constant_pool(BinaryFileReader& bfr) {
             }
         };
 
+    for(int i = 0; i < cvec.size(); i++) {
+        auto& c = cvec[i];
+
+        // string representation
+        std::string str_rep = eval_constant(i+1);
+        //std::cout << str_rep << std::endl << std::flush;
+
+        std::tuple<uint8_t, int, int> t;
+        std::get<0>(t) = c.tag;
+        std::get<1>(t) = this->cp_buffer.size();
+        this->cp_buffer.insert(this->cp_buffer.end(), str_rep.begin(), str_rep.end());
+        std::get<2>(t) = this->cp_buffer.size();
+
+        this->cp_info.push_back(t);
+
+        //std::cout << std::get<1>(t) << "  " << std::get<2>(t) << "\n";
+
+    }
+
 }
 
-std::string ClassFile::getConstantAt(int index) {
+std::string ClassFile::getConstantAt(int index) { // uses the 1-based indexing used by Java classs files
 
+    auto& t = this->cp_info.at(index-1);
 
+    return std::string(
+            this->cp_buffer.begin() + std::get<1>(t), 
+            this->cp_buffer.begin() + std::get<2>(t));
 
 }

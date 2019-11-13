@@ -1,11 +1,14 @@
 #include <ConstantInfo.h>
 #include <vector>
+#include <cstring>
 
 ConstantInfo::ConstantInfo(
         BinaryFileReader& bfr, uint8_t tag,
         int& cp_index, std::vector<char>& c_buf) {
 
     this->tag = tag;
+
+    std::cout << int(tag) << std::endl << std::flush;
 
     switch(tag) {
         case 7:  // CONSTANT_Class
@@ -58,16 +61,9 @@ ConstantInfo::ConstantInfo(
                 // to describe their component parts
 
                 this->utf8_info.length = bfr.read_u16();
-
-                std::vector<char> buf;
-                buf.resize(this->utf8_info.length);
-                bfr.read_buffer(buf.data(), this->utf8_info.length);
-
-                this->utf8_info.start = c_buf.size();
-                this->utf8_info.end   = c_buf.size() + buf.size();
-
-                for(char c : buf)
-                    c_buf.push_back(c);
+                this->utf8_info.buf = new char[this->utf8_info.length];
+                
+                bfr.read_buffer(this->utf8_info.buf, this->utf8_info.length);
 
             }
             cp_index += 1;
@@ -92,4 +88,59 @@ ConstantInfo::ConstantInfo(
                     std::to_string(int(tag)));
     }
 
+}
+
+ConstantInfo& ConstantInfo::operator=(const ConstantInfo& rhs) {
+    //std::cout << "Assignment operator" << std::endl << std::flush;
+
+    if(this == &rhs) {
+        return *this;
+    }
+
+    if(this->tag == 1) { // Utf-8 tag
+        delete[] this->utf8_info.buf;
+    }
+
+    // just treat both like PODs
+    std::memcpy(this, &rhs, sizeof(ConstantInfo));
+
+    this->tag = rhs.tag;
+
+    if(rhs.tag == 1) {
+        this->utf8_info.buf = new char[rhs.utf8_info.length];
+        std::memcpy(this->utf8_info.buf, rhs.utf8_info.buf, rhs.utf8_info.length);
+    }
+
+    return *this;
+}
+
+ConstantInfo::ConstantInfo(const ConstantInfo& c) {
+    this->tag = 255;
+    *this = c;
+}
+
+ConstantInfo::~ConstantInfo(void) {
+    if(this->tag == 1)
+        delete[] this->utf8_info.buf;
+}
+
+std::string ConstantInfo::nameOfTag(uint8_t tag) {
+    switch(tag) {
+        case 7:  return "Class";
+        case 9:  return "FieldRef";
+        case 10: return "MethodRef";
+        case 11: return "InterfaceMethodRef";
+        case 8:  return "String";
+        case 3:  return "Integer";
+        case 4:  return "Float";
+        case 5:  return "Long";
+        case 6:  return "Double";
+        case 12: return "NameAndType";
+        case 1:  return "Utf8";
+        case 15: return "MethodHandle";
+        case 16: return "MethodType";
+        case 18: return "InvokeDynamic";
+        default:
+            throw std::runtime_error("ConstantInfo::nameOfTag : unknown tag value");
+    }
 }

@@ -16,8 +16,6 @@ class ClassFile {
 
     uint16_t constant_pool_count;
     std::vector<char> cp_buffer;
-
-    //                     tag,     start, end
     std::vector<std::tuple<uint8_t, int,   int>> cp_info;
 
     uint16_t access_flags;

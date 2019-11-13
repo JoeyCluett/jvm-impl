@@ -57,9 +57,7 @@ struct ConstantInfo {
 
         struct {
             uint16_t length;
-            int start;
-            int end;
-            // bytes are stored in the cp_info_buffer
+            char* buf;
         } utf8_info;
 
         struct {
@@ -79,5 +77,13 @@ struct ConstantInfo {
     };
 
     ConstantInfo(BinaryFileReader& bfr, uint8_t tag, int& cp_index, std::vector<char>& c_buf);
+
+    ConstantInfo(const ConstantInfo& rhs);
+
+    ConstantInfo& operator=(const ConstantInfo& rhs);
+
+    static std::string nameOfTag(uint8_t tag);
+
+    ~ConstantInfo(void);
 
 };
