@@ -4,8 +4,8 @@
 #include <utility>
 
 /*
-    This class assumes you are working 
-    on a 64-bit little-endian ISA like AMD64
+    This class assumes you are working on a 64-bit little-endian ISA like AMD64
+    bytes read from Class file are big-endian. this class swaps bytes as needed
 */
 
 class BinaryFileReader {

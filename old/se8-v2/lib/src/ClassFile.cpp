@@ -36,8 +36,6 @@ void ClassFile::init(const std::string& filename) {
 
     for(int i = 0; i < this->cp_info.size(); i++) {
 
-//        std::cout << this->getConstantAt(i+1) << std::endl;
-
         auto s = this->getConstantAt(i+1);
         printf("%-5d : %s %s\n", i, ConstantInfo::nameOfTag(std::get<0>(this->cp_info[i])).c_str(), s.c_str());
 
@@ -129,7 +127,7 @@ void ClassFile::load_constant_pool(BinaryFileReader& bfr) {
                     break;
                 case 15: // CONSTANT_MethodHandle
                     {
-                        return 
+                        return
                             std::to_string(int(ci.methodhandle_info.reference_kind)) + " " +
                             eval_constant(ci.methodhandle_info.reference_index);
                     }
@@ -141,7 +139,7 @@ void ClassFile::load_constant_pool(BinaryFileReader& bfr) {
                     break;
                 case 18: // CONSTANT_InvokeDynamic
                     {
-                        return 
+                        return
                             std::to_string(int(ci.invokedynamic_info.bootstrap_method_attr_index)) + " " +
                             eval_constant(ci.invokedynamic_info.name_and_type_index);
                     }
@@ -179,7 +177,7 @@ std::string ClassFile::getConstantAt(int index) { // uses the 1-based indexing u
     auto& t = this->cp_info.at(index-1);
 
     return std::string(
-            this->cp_buffer.begin() + std::get<1>(t), 
+            this->cp_buffer.begin() + std::get<1>(t),
             this->cp_buffer.begin() + std::get<2>(t));
 
 }
